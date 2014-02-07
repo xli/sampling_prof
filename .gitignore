@@ -1,0 +1,6 @@
+/tmp
+/.idea
+/ext/ext.iml
+/lib/sampling_prof.jar
+/sampling_prof-*.gem
+/profile.txt
