@@ -12,6 +12,7 @@ import org.jruby.runtime.backtrace.RubyStackTraceElement;
 import org.jruby.runtime.backtrace.TraceType;
 import org.jruby.runtime.builtin.IRubyObject;
 
+import java.io.File;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -65,6 +66,7 @@ public class SamplingProf extends RubyObject {
     }
 
     private static class Sampling {
+        private final String workingDir;
         private Map<String, Integer> nodes = new HashMap<String, Integer>();
         private Map<Path, Integer> callGraph = new HashMap<Path, Integer>();
         private Map<Integer, Integer> counts = new HashMap<Integer, Integer>();
@@ -74,6 +76,7 @@ public class SamplingProf extends RubyObject {
         public Sampling(ThreadContext context) {
             this.context = context;
             this.ruby = context.getRuntime();
+            this.workingDir = new File("").getAbsolutePath();
         }
 
         private IRubyObject samples() {
@@ -126,11 +129,15 @@ public class SamplingProf extends RubyObject {
         private static final String NODE_DATA_SPLITTER = ":";
         private String node(RubyStackTraceElement backtrace) {
             StringBuffer buffer = new StringBuffer();
-            buffer.append(backtrace.getFileName()).append(NODE_DATA_SPLITTER).
+            buffer.append(relativePath(backtrace.getFileName())).append(NODE_DATA_SPLITTER).
                     append(backtrace.getLineNumber()).append(NODE_DATA_SPLITTER).
                     append(backtrace.getMethodName());
             return buffer.toString();
 
+        }
+
+        private String relativePath(String fn) {
+            return fn.replaceFirst(this.workingDir, ".");
         }
 
         private RubyArray callGraphToRuby() {
