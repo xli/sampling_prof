@@ -1,4 +1,6 @@
 require 'test_helper'
+require 'stringio'
+require 'fileutils'
 
 class SamplingProfTest < Test::Unit::TestCase
   def setup
@@ -18,6 +20,8 @@ class SamplingProfTest < Test::Unit::TestCase
 
     assert !@prof.stop
     assert !@prof.profiling?
+  ensure
+    FileUtils.rm_rf @prof.output_file
   end
 
   def test_profile_and_output_text_result
@@ -26,6 +30,8 @@ class SamplingProfTest < Test::Unit::TestCase
       fib(25)
     end
     assert File.exists?(SamplingProf::DEFAULT_OUTPUT_FILE)
+  ensure
+    FileUtils.rm_rf @prof.output_file
   end
 
   def test_flat_report
@@ -37,10 +43,19 @@ class SamplingProfTest < Test::Unit::TestCase
   end
 
   def test_flat_report_output
-    @prof.profile do
-      fib(25)
+    output = <<-TXT
+total counts: 12
+calls	%	name
+8	66.67%	test/sampling_prof_test.rb:69:fib
+2	16.67%	test/sampling_prof_test.rb:64:fib
+2	16.67%	test/sampling_prof_test.rb:69:+
+TXT
+    @prof.output_file = File.dirname(__FILE__) + '/profile.txt'
+    result = StringIO.open do |io|
+      @prof.report(:flat, io)
+      io.string
     end
-    @prof.report(:flat)
+    assert_equal output, result
   end
 
   def fib(i)

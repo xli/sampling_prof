@@ -3,23 +3,27 @@ require 'sampling_prof.jar'
 class SamplingProf
   DEFAULT_OUTPUT_FILE = 'profile.txt'
 
-  def profile(path=nil, &block)
-    start(path)
+  attr_accessor :output_file
+
+  def output_file
+    @output_file ||= DEFAULT_OUTPUT_FILE
+  end
+
+  def profile(&block)
+    start
     yield if block_given?
   ensure
     stop if block_given?
   end
 
-  def start(path=nil)
-    __start__(&output(path))
+  def start
+    __start__(&output)
   end
 
-  def output(path=nil)
-    path ||= DEFAULT_OUTPUT_FILE
+  def output
     lambda do |data|
       nodes, counts, call_graph = data
-      # puts "[DEBUG]data => #{data.inspect}"
-      File.open(path, 'w') do |f|
+      File.open(output_file, 'w') do |f|
         nodes.each do |node|
           # node name, node id
           f.puts node.join(',')
@@ -38,22 +42,23 @@ class SamplingProf
     end
   end
 
-  def report(type, file=DEFAULT_OUTPUT_FILE)
-    file ||= DEFAULT_OUTPUT_FILE
-    nodes, counts, call_graph = File.read(file).split("\n\n")
+  def report(type, output=$stdout)
+    nodes, counts, call_graph = File.read(output_file).split("\n\n")
     nodes = nodes.split("\n").inject({}) do |ret, l|
       n, i = l.split(',')
       ret[i.to_i] = n
       ret
     end
+
     counts = counts.split("\n").map do |l|
       l.split(',').map(&:to_i)
     end
     total_count, report = flat_report(nodes, counts)
-    puts "total counts: #{total_count}"
-    puts "calls\t%\tname"
+
+    output.puts "total counts: #{total_count}"
+    output.puts "calls\t%\tname"
     report.first(20).each do |v|
-      puts v.join("\t")
+      output.puts v.join("\t")
     end
   end
 
@@ -64,4 +69,5 @@ class SamplingProf
     end
     [total, reports]
   end
+
 end
