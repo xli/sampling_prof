@@ -31,7 +31,7 @@ class SamplingProf
         f.puts ""
         counts.each do |count|
           # node id, count
-          f.puts count.join(",")
+          f.puts count.flatten.join(",")
         end
         f.puts ""
         call_graph.each do |v|
@@ -53,19 +53,21 @@ class SamplingProf
     counts = counts.split("\n").map do |l|
       l.split(',').map(&:to_i)
     end
-    total_count, report = flat_report(nodes, counts)
+    total_samples, report = flat_report(nodes, counts)
 
-    output.puts "total counts: #{total_count}"
-    output.puts "calls\t%\tname"
+    output.puts "total samples: #{total_samples}"
+    output.puts "self\t%\ttotal\t%\tname"
     report.first(20).each do |v|
       output.puts v.join("\t")
     end
   end
 
   def flat_report(nodes, counts)
-    total = counts.map{|_,c| c}.reduce(:+)
-    reports = counts.sort_by{|_,c| -c}.map do |id, c|
-      [c, '%.2f%' % (100 * c.to_f/total), nodes[id]]
+    total = counts.map{|_,sc,tc| sc}.reduce(:+)
+    reports = counts.reject{|_,sc,tc| sc == 0}.sort_by{|_,sc,tc| -sc}.map do |id, sc, tc|
+      [sc, '%.2f%' % (100 * sc.to_f/total),
+       tc, '%.2f%' % (100 * tc.to_f/total),
+       nodes[id]]
     end
     [total, reports]
   end

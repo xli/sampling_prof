@@ -36,25 +36,30 @@ class SamplingProfTest < Test::Unit::TestCase
 
   def test_flat_report
     total, report = @prof.flat_report({0 => 'a', 1 => 'b'},
-                                      [[0, 1], [1, 4]])
+                                      [[0, 1, 5], [1, 4, 4]])
 
     assert_equal 5, total
-    assert_equal [[4, "80.00%", "b"], [1, "20.00%", "a"]], report
+    expected = [[4, "80.00%", 4, "80.00%", "b"],
+                [1, "20.00%", 5, "100.00%", "a"]]
+    assert_equal expected, report
   end
 
   def test_flat_report_output
     output = <<-TXT
-total counts: 12
-calls	%	name
-8	66.67%	test/sampling_prof_test.rb:69:fib
-2	16.67%	test/sampling_prof_test.rb:64:fib
-2	16.67%	test/sampling_prof_test.rb:69:+
+total samples: 15
+self	%	total	%	name
+6	40.00%	15	100.00%	test/sampling_prof_test.rb:73:fib
+3	20.00%	3	20.00%	test/sampling_prof_test.rb:69:fib
+3	20.00%	4	26.67%	test/sampling_prof_test.rb:68:fib
+2	13.33%	2	13.33%	test/sampling_prof_test.rb:73:-
+1	6.67%	1	6.67%	test/sampling_prof_test.rb:68:==
 TXT
     @prof.output_file = File.dirname(__FILE__) + '/profile.txt'
     result = StringIO.open do |io|
       @prof.report(:flat, io)
       io.string
     end
+
     assert_equal output, result
   end
 
