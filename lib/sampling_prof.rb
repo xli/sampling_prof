@@ -1,4 +1,4 @@
-require 'sampling_prof.jar'
+require File.join(File.dirname(__FILE__), 'sampling_prof.jar')
 
 class SamplingProf
   DEFAULT_OUTPUT_FILE = 'profile.txt'
