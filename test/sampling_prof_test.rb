@@ -29,7 +29,7 @@ class SamplingProfTest < Test::Unit::TestCase
     @prof.profile do
       fib(25)
     end
-    assert File.exists?(SamplingProf::DEFAULT_OUTPUT_FILE)
+    assert File.exist?(SamplingProf::DEFAULT_OUTPUT_FILE)
   ensure
     FileUtils.rm_rf @prof.output_file
   end

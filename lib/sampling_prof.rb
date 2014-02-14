@@ -1,4 +1,8 @@
-require File.join(File.dirname(__FILE__), 'sampling_prof.jar')
+if RUBY_PLATFORM =~ /java/
+  require File.join(File.dirname(__FILE__), 'sampling_prof.jar')
+else
+  require 'sampling_prof/internal'
+end
 
 class SamplingProf
   DEFAULT_OUTPUT_FILE = 'profile.txt'
