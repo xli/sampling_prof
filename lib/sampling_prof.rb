@@ -7,7 +7,7 @@ end
 class SamplingProf
   DEFAULT_OUTPUT_FILE = 'profile.txt'
 
-  attr_accessor :output_file
+  attr_writer :output_file
 
   def output_file
     @output_file ||= DEFAULT_OUTPUT_FILE
