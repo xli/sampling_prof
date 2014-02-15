@@ -1,5 +1,5 @@
 if RUBY_PLATFORM =~ /java/
-  require File.join(File.dirname(__FILE__), 'sampling_prof.jar')
+  require 'sampling_prof.jar'
 else
   require 'sampling_prof/internal'
 end
