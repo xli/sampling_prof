@@ -4,8 +4,7 @@ class SamplingProf
   end
 
   class Sampling
-    def initialize(target)
-      @target = target
+    def initialize
       @samples = Hash.new{|h,k| h[k] = [0, 0] }
       @call_graph = Hash.new{|h,k| h[k] = 0}
       @nodes = {}
@@ -15,14 +14,14 @@ class SamplingProf
       [@nodes.to_a, @samples.to_a, @call_graph.to_a]
     end
 
-    def snapshot
-      locations = @target.backtrace_locations
+    def process(locations)
       from = -1
       paths = []
       calls = []
+      top_index = locations.size - 1
       locations.reverse.each_with_index do |loc, i|
-        node_id = node_id(loc.path)
-        if i == 0
+        node_id = node_id(loc)
+        if i == top_index
           @samples[node_id][0] += 1
         end
 
@@ -39,8 +38,12 @@ class SamplingProf
       end
     end
 
-    def node_id(path)
-      @nodes[path] ||= @nodes.size
+    def node_id(loc)
+      @nodes[call_element(loc)] ||= @nodes.size
+    end
+
+    def call_element(loc)
+      [loc.path, loc.lineno, loc.label].join(":")
     end
   end
 
@@ -55,10 +58,10 @@ class SamplingProf
       @running = true
       target = Thread.current
       @sampling_thread = Thread.start do
-        sampling = Sampling.new(target)
+        sampling = Sampling.new
         loop do
           break unless @running
-          sampling.snapshot
+          sampling.process(target.backtrace_locations)
           sleep @period
         end
         block.call(sampling.result)

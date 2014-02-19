@@ -63,6 +63,21 @@ TXT
     assert_equal output, result
   end
 
+  def test_snapshot
+    unless defined?(SamplingProf::Sampling)
+      print "S"
+      return
+    end
+    sampling = SamplingProf::Sampling.new
+    sampling.process([OpenStruct.new(:path => 'path1', :label => 'm1', :lineno => 1),
+                       OpenStruct.new(:path => 'path2', :label => 'm2', :lineno => 2),
+                       OpenStruct.new(:path => 'path3', :label => 'm3', :lineno => 3)])
+    nodes, samples, call_graph = sampling.result
+    assert_equal [['path3:3:m3', 0], ['path2:2:m2', 1], ['path1:1:m1', 2]], nodes
+    assert_equal [[0, [0, 1]], [1, [0, 1]], [2, [1, 1]]], samples
+    assert_equal [[[-1, 0], 1], [[0, 1], 1], [[1, 2], 1]], call_graph
+  end
+
   def fib(i)
     if i == 1
       0
