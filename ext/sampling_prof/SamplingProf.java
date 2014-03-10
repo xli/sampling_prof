@@ -22,13 +22,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 @JRubyClass(name = "SamplingProf")
 public class SamplingProf extends RubyObject {
 
-    public static RubyStackTraceElement[] getRubyStackTrace(ThreadContext context) {
-        StackTraceElement[] stackTrace = context.getThread().getNativeThread().getStackTrace();
-
-        BacktraceData data = TraceType.Gather.CALLER.getBacktraceData(context, stackTrace, false);
-        return data.getBacktrace(context.getRuntime());
-    }
-
     public static class Path {
 
         private final int fromId;
@@ -84,23 +77,33 @@ public class SamplingProf extends RubyObject {
 
     private static class Sampling {
         private final String workingDir;
-        private Map<String, Integer> nodes = new HashMap<String, Integer>();
-        private Map<Path, Integer> callGraph = new HashMap<Path, Integer>();
-        private Map<Integer, Count> counts = new HashMap<Integer, Count>();
+        private final Ruby ruby;
+        private final ThreadContext targetContext;
+        private final Thread targetThread;
+        private final Map<String, Integer> nodes = new HashMap<String, Integer>();
+        private final Map<Path, Integer> callGraph = new HashMap<Path, Integer>();
+        private final Map<Integer, Count> counts = new HashMap<Integer, Count>();
 
-        public Sampling() {
+        public Sampling(ThreadContext targetContext) {
+            this.targetContext = targetContext;
+            this.ruby = targetContext.getRuntime();
+            this.targetThread = targetContext.getThread().getNativeThread();
             this.workingDir = new File("").getAbsolutePath();
         }
 
-        private IRubyObject result(Ruby ruby) {
+        private IRubyObject result() {
             return RubyArray.newArray(ruby, new IRubyObject[]{
-                    nodesToRuby(ruby),
-                    countsToRuby(ruby),
-                    callGraphToRuby(ruby)
+                    nodesToRuby(),
+                    countsToRuby(),
+                    callGraphToRuby()
             });
         }
 
-        public void process(RubyStackTraceElement[] backtrace) {
+        public void process() {
+            StackTraceElement[] stackTrace = targetThread.getStackTrace();
+            BacktraceData data = TraceType.Gather.CALLER.getBacktraceData(targetContext, stackTrace, false);
+            RubyStackTraceElement[] backtrace = data.getBacktrace(ruby);
+
             int parentId = -1;
             Set<Path> paths = new HashSet<Path>();
             Set<Integer> calls = new HashSet<Integer>();
@@ -165,7 +168,7 @@ public class SamplingProf extends RubyObject {
             return fn.replaceFirst(this.workingDir, ".");
         }
 
-        private RubyArray callGraphToRuby(Ruby ruby) {
+        private RubyArray callGraphToRuby() {
             RubyArray array = RubyArray.newArray(ruby, callGraph.size());
             for (Map.Entry<Path, Integer> entry : callGraph.entrySet()) {
                 RubyArray count = RubyArray.newArray(ruby, new IRubyObject[]{
@@ -177,7 +180,7 @@ public class SamplingProf extends RubyObject {
             return array;
         }
 
-        private RubyArray nodesToRuby(Ruby ruby) {
+        private RubyArray nodesToRuby() {
             RubyArray array = RubyArray.newArray(ruby, nodes.size());
             for (Map.Entry<String, Integer> entry : nodes.entrySet()) {
                 RubyArray count = RubyArray.newArray(ruby, new IRubyObject[]{
@@ -189,7 +192,7 @@ public class SamplingProf extends RubyObject {
             return array;
         }
 
-        private RubyArray countsToRuby(Ruby ruby) {
+        private RubyArray countsToRuby() {
             RubyArray array = RubyArray.newArray(ruby, counts.size());
             for (Map.Entry<Integer, Count> entry : counts.entrySet()) {
                 RubyArray count = RubyArray.newArray(ruby, new IRubyObject[]{
@@ -254,12 +257,12 @@ public class SamplingProf extends RubyObject {
         samplingThread = new Thread(new Runnable() {
             @Override
             public void run() {
-                final Sampling sampling = new Sampling();
+                final Sampling sampling = new Sampling(context);
                 while (running.get()) {
-                    sampling.process(getRubyStackTrace(context));
+                    sampling.process();
                     sleep();
                 }
-                callback.call(ruby.getCurrentContext(), sampling.result(context.getRuntime()));
+                callback.call(ruby.getCurrentContext(), sampling.result());
             }
         });
         samplingThread.start();
