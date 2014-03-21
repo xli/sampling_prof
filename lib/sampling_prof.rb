@@ -20,11 +20,11 @@ class SamplingProf
     stop if block_given?
   end
 
-  def start
-    __start__(&output)
+  def start(handler=default_output_handler)
+    __start__(&handler)
   end
 
-  def output
+  def default_output_handler
     lambda do |data|
       nodes, counts, call_graph = data
       File.open(output_file, 'w') do |f|

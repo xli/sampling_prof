@@ -24,6 +24,16 @@ class SamplingProfTest < Test::Unit::TestCase
     FileUtils.rm_rf @prof.output_file
   end
 
+  def test_start_profile_with_specific_output_handler
+    @data = nil
+    handler = lambda do |data|
+      @data = data
+    end
+    @prof.start(handler)
+    @prof.stop
+    assert @data
+  end
+
   def test_profile_and_output_text_result
     FileUtils.rm_rf(SamplingProf::DEFAULT_OUTPUT_FILE)
     @prof.profile do
@@ -45,7 +55,13 @@ class SamplingProfTest < Test::Unit::TestCase
   end
 
   def test_flat_report_output
-    output = <<-TXT
+    @prof.output_file = File.dirname(__FILE__) + '/profile.txt'
+    result = StringIO.open do |io|
+      @prof.report(:flat, io)
+      io.string
+    end
+
+    expected_output = <<-TXT
 total samples: 15
 self	%	total	%	name
 6	40.00%	15	100.00%	test/sampling_prof_test.rb:73:fib
@@ -54,13 +70,7 @@ self	%	total	%	name
 2	13.33%	2	13.33%	test/sampling_prof_test.rb:73:-
 1	6.67%	1	6.67%	test/sampling_prof_test.rb:68:==
 TXT
-    @prof.output_file = File.dirname(__FILE__) + '/profile.txt'
-    result = StringIO.open do |io|
-      @prof.report(:flat, io)
-      io.string
-    end
-
-    assert_equal output, result
+    assert_equal expected_output, result
   end
 
   def test_snapshot
