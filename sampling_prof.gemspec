@@ -1,6 +1,6 @@
 Gem::Specification.new do |s|
   s.name = 'sampling_prof'
-  s.version = '0.1.4'
+  s.version = '0.1.5'
   s.summary = 'Simple sampling profiler on JRuby'
   s.description = <<-EOF
 SamplingProf is a profiling tool that operates by sampling your running thread stacktrace. The result is statistical approximation, but it allows your code to run near full speed
