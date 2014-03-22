@@ -52,13 +52,36 @@ class SamplingProf
     end
   end
 
+  class Threads
+    def initialize
+      @set = Set.new
+      @mutex = Mutex.new
+    end
+
+    def each(&block)
+      dup.each(&block)
+    end
+
+    def dup
+      @mutex.synchronize { @set.dup }
+    end
+
+    def add(obj)
+      @mutex.synchronize { @set.add(obj) }
+    end
+
+    def delete(obj)
+      @mutex.synchronize { @set.delete(obj) }
+    end
+  end
+
   def initialize(period, multithreading=false, multithreading_flush_count=2*60/period, &block)
     @period = period
     @multithreading = multithreading
     @multithreading_flush_count = multithreading_flush_count
-    @default_callback = block_given? ? block : nil
+    @output_handler = block_given? ? block : nil
     @sampling_thread = nil
-    @threads = Set.new # need find thread safe set
+    @threads = Threads.new
     @running = false
   end
 
@@ -66,7 +89,7 @@ class SamplingProf
     if @multithreading || !@running
       @running = true
       @threads.add(Thread.current)
-      callback = @default_callback ? @default_callback : block
+      callback = @output_handler ? @output_handler : block
       @sampling_thread ||= Thread.start do
         loop do
           sampling = Sampling.new(@threads)
