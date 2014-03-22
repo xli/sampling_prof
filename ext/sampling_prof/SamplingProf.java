@@ -46,9 +46,7 @@ public class SamplingProf extends RubyObject {
     public IRubyObject start(Block callback) {
         if (this.multithreading || !running()) {
             samplingContexts.add(this.getRuntime().getCurrentContext());
-            if (!running()) {
-                startSampling(this.defaultCallback != null ? defaultCallback : callback);
-            }
+            startSampling(this.defaultCallback != null ? defaultCallback : callback);
             return this.getRuntime().getTrue();
         } else {
             return this.getRuntime().getFalse();
@@ -84,6 +82,9 @@ public class SamplingProf extends RubyObject {
     }
 
     private synchronized void startSampling(final Block callback) {
+        if (running()) {
+            return;
+        }
         final Ruby ruby = this.getRuntime();
         samplingThread = new Thread(new Runnable() {
             @Override
