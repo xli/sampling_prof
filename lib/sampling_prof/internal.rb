@@ -56,7 +56,7 @@ class SamplingProf
     @period = period
     @multithreading = multithreading
     @multithreading_flush_count = multithreading_flush_count
-    @multithreading_block = block
+    @default_callback = block_given? ? block : nil
     @sampling_thread = nil
     @threads = Set.new # need find thread safe set
     @running = false
@@ -66,7 +66,7 @@ class SamplingProf
     if @multithreading || !@running
       @running = true
       @threads.add(Thread.current)
-      callback = @multithreading ? @multithreading_block : block
+      callback = @default_callback ? @default_callback : block
       @sampling_thread ||= Thread.start do
         loop do
           sampling = Sampling.new(@threads)

@@ -7,6 +7,17 @@ class SamplingProfTest < Test::Unit::TestCase
     @prof = SamplingProf.new(0.01)
   end
 
+  def test_accept_default_callback_while_initializing
+    @data = []
+    @prof = SamplingProf.new(0.01) do |data|
+      @data << data
+    end
+    @prof.profile do
+      fib(5)
+    end
+    assert @data.size > 0
+  end
+
   def test_start_profile
     assert !@prof.profiling?
     assert !@prof.stop

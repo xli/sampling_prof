@@ -17,10 +17,10 @@ public class SamplingProf extends RubyObject {
     private long samplePeriod; // ms
     private Thread samplingThread;
     private boolean multithreading = false;
-    private Block multithreadingCallback;
     private int multithreadingFlushCount;
 
     private Set<ThreadContext> samplingContexts;
+    private Block defaultCallback;
 
     public SamplingProf(Ruby runtime, RubyClass metaClass) {
         super(runtime, metaClass);
@@ -30,10 +30,9 @@ public class SamplingProf extends RubyObject {
     public IRubyObject initialize(IRubyObject[] args, Block block) {
         this.samplePeriod = (long) (args[0].convertToFloat().getDoubleValue() * 1000);
         this.samplingContexts = Collections.newSetFromMap(new ConcurrentHashMap<ThreadContext, Boolean>());
-
+        this.defaultCallback = block.isGiven() ? block : null;
         if (args.length >= 2) {
             this.multithreading = args[1].isTrue();
-            this.multithreadingCallback = block;
             if (args.length == 3) {
                 this.multithreadingFlushCount = args[2].convertToInteger().getBigIntegerValue().intValue();
             } else {
@@ -48,7 +47,7 @@ public class SamplingProf extends RubyObject {
         if (this.multithreading || !running()) {
             samplingContexts.add(this.getRuntime().getCurrentContext());
             if (!running()) {
-                startSampling(this.multithreading ? this.multithreadingCallback : callback);
+                startSampling(this.defaultCallback != null ? defaultCallback : callback);
             }
             return this.getRuntime().getTrue();
         } else {
