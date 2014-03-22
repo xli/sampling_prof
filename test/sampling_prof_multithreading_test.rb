@@ -14,13 +14,13 @@ class SamplingProfMultithreadingTest < Test::Unit::TestCase
 
     thread1 = Thread.start do
       @prof.profile do
-        fib(25)
+        fib(35)
       end
     end
 
     thread2 = Thread.start do
       @prof.profile do
-        fib(25)
+        fib(35)
       end
     end
     thread1.join
@@ -28,8 +28,16 @@ class SamplingProfMultithreadingTest < Test::Unit::TestCase
 
     @prof.terminate
 
-    assert_equal 1, @data.size
-    nodes, counts, call_graph = @data[0]
+    # c-ruby 2.1 running a lot faster than jruby 1.7.9 --1.8
+    # so in cruby we got 1 copy, but in jruby we got more than 1 set
+# data
+    if RUBY_PLATFORM =~ /java/
+      assert_equal 3, @data.size
+    else
+      assert_equal 1, @data.size
+    end
+    nodes = @data[0][0]
+
     linums = nodes.map{|a| a[0].split(':')}.select do |a|
       a[0] =~ /sampling_prof_multithreading_test.rb$/
     end.map do |a|
