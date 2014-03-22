@@ -11,24 +11,25 @@ class BenchmarkTest < Test::Unit::TestCase
     puts "t: #{t}"
     Benchmark.bm do |x|
       x.report('warm up') do
-        5.times { fib(t) }
+        5.times { my_fib(t) }
       end
       x.report('no profiling') do
-        fib(t)
+        my_fib(t)
       end
       x.report('with profiling') do
-        @prof.profile { fib(t) }
+        @prof.profile { my_fib(t) }
       end
     end
   end
 
-  def fib(i)
+  def my_fib(i)
     if i == 1
       0
     elsif i == 2
       1
     else
-      fib(i - 1) + fib(i - 2)
+      my_fib(i - 1) + my_fib(i - 2)
     end
   end
+
 end

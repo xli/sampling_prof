@@ -87,14 +87,4 @@ TXT
     assert_equal [[0, [0, 1]], [1, [0, 1]], [2, [1, 1]]], samples
     assert_equal [[[-1, 0], 1], [[0, 1], 1], [[1, 2], 1]], call_graph
   end
-
-  def fib(i)
-    if i == 1
-      0
-    elsif i == 2
-      1
-    else
-      fib(i - 1) + fib(i - 2)
-    end
-  end
 end
