@@ -67,6 +67,7 @@ public class SamplingProf extends RubyObject {
         return JavaUtil.convertJavaToRuby(this.getRuntime(), running());
     }
 
+    // this method is not thread-safe, should only be called once to terminate profiling
     @JRubyMethod
     public IRubyObject terminate() {
         if (running()) {
