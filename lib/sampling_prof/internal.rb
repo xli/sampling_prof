@@ -1,8 +1,5 @@
 require 'set'
 class SamplingProf
-  class Sample < Struct.new(:self, :total)
-  end
-
   class Sampling
     def initialize(threads)
       @samples = Hash.new{|h,k| h[k] = [0, 0] }
@@ -12,7 +9,11 @@ class SamplingProf
     end
 
     def result
-      [@nodes.to_a, @samples.to_a, @call_graph.to_a]
+      ret = []
+      ret << @nodes.map {|node| node.join(',')}.join("\n")
+      ret << @samples.map {|count| count.flatten.join(',')}.join("\n")
+      ret << @call_graph.map {|v| v.flatten.join(',')}.join("\n")
+      "#{ret.join("\n\n")}\n"
     end
 
     def process

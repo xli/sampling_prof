@@ -1,5 +1,4 @@
 import org.jruby.Ruby;
-import org.jruby.RubyArray;
 import org.jruby.javasupport.JavaUtil;
 import org.jruby.runtime.ThreadContext;
 import org.jruby.runtime.builtin.IRubyObject;
@@ -46,13 +45,6 @@ public class Sampling {
             result = 31 * result + toId;
             return result;
         }
-
-        public IRubyObject[] toRuby(Ruby ruby) {
-            return new IRubyObject[]{
-                    JavaUtil.convertJavaToRuby(ruby, fromId),
-                    JavaUtil.convertJavaToRuby(ruby, toId)
-            };
-        }
     }
 
     public static class Count {
@@ -63,14 +55,9 @@ public class Sampling {
             this.self = self;
             this.total = total;
         }
-
-        public RubyArray toRuby(Ruby ruby) {
-            return RubyArray.newArray(ruby, new IRubyObject[]{
-                    JavaUtil.convertJavaToRuby(ruby, self),
-                    JavaUtil.convertJavaToRuby(ruby, total)
-            });
-        }
     }
+
+    private static final String NODE_DATA_SPLITTER = ":";
 
     private final String workingDir;
     private final Ruby ruby;
@@ -86,11 +73,25 @@ public class Sampling {
     }
 
     public IRubyObject result() {
-        return RubyArray.newArray(ruby, new IRubyObject[]{
-                nodesToRuby(),
-                countsToRuby(),
-                callGraphToRuby()
-        });
+        StringBuffer buffer = new StringBuffer();
+        for (Map.Entry<String, Integer> entry1 : nodes.entrySet()) {
+            buffer.append(entry1.getKey()).append(",").append(entry1.getValue());
+            buffer.append("\n");
+        }
+        buffer.append("\n");
+        for (Map.Entry<Integer, Count> entry1 : counts.entrySet()) {
+            Count count = entry1.getValue();
+            buffer.append(entry1.getKey()).append(",").append(count.self).append(",").append(count.total);
+            buffer.append("\n");
+        }
+        buffer.append("\n");
+        for (Map.Entry<Path, Integer> entry : callGraph.entrySet()) {
+            Path key = entry.getKey();
+            buffer.append(key.fromId).append(",").append(key.toId).append(",").append(entry.getValue());
+            buffer.append("\n");
+        }
+
+        return JavaUtil.convertJavaToRuby(ruby, buffer.toString());
     }
 
     public void process() {
@@ -152,8 +153,6 @@ public class Sampling {
         }
     }
 
-    private static final String NODE_DATA_SPLITTER = ":";
-
     private String node(RubyStackTraceElement backtrace) {
         StringBuffer buffer = new StringBuffer();
         buffer.append(relativePath(backtrace.getFileName())).append(NODE_DATA_SPLITTER).
@@ -165,42 +164,6 @@ public class Sampling {
 
     private String relativePath(String fn) {
         return fn.replaceFirst(this.workingDir, ".");
-    }
-
-    private RubyArray callGraphToRuby() {
-        RubyArray array = RubyArray.newArray(ruby, callGraph.size());
-        for (Map.Entry<Path, Integer> entry : callGraph.entrySet()) {
-            RubyArray count = RubyArray.newArray(ruby, new IRubyObject[]{
-                    RubyArray.newArray(ruby, entry.getKey().toRuby(ruby)),
-                    JavaUtil.convertJavaToRuby(ruby, entry.getValue())
-            });
-            array.append(count);
-        }
-        return array;
-    }
-
-    private RubyArray nodesToRuby() {
-        RubyArray array = RubyArray.newArray(ruby, nodes.size());
-        for (Map.Entry<String, Integer> entry : nodes.entrySet()) {
-            RubyArray count = RubyArray.newArray(ruby, new IRubyObject[]{
-                    JavaUtil.convertJavaToRuby(ruby, entry.getKey()),
-                    JavaUtil.convertJavaToRuby(ruby, entry.getValue())
-            });
-            array.append(count);
-        }
-        return array;
-    }
-
-    private RubyArray countsToRuby() {
-        RubyArray array = RubyArray.newArray(ruby, counts.size());
-        for (Map.Entry<Integer, Count> entry : counts.entrySet()) {
-            RubyArray count = RubyArray.newArray(ruby, new IRubyObject[]{
-                    JavaUtil.convertJavaToRuby(ruby, entry.getKey()),
-                    entry.getValue().toRuby(ruby)
-            });
-            array.append(count);
-        }
-        return array;
     }
 
     private void log(Object obj) {

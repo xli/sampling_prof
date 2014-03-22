@@ -26,22 +26,8 @@ class SamplingProf
 
   def default_output_handler
     lambda do |data|
-      nodes, counts, call_graph = data
       File.open(output_file, 'w') do |f|
-        nodes.each do |node|
-          # node name, node id
-          f.puts node.join(',')
-        end
-        f.puts ""
-        counts.each do |count|
-          # node id, count
-          f.puts count.flatten.join(",")
-        end
-        f.puts ""
-        call_graph.each do |v|
-          # from node id, to node id, count
-          f.puts v.flatten.join(",")
-        end
+        f.write(data)
       end
     end
   end

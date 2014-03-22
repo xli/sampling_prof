@@ -83,9 +83,21 @@ TXT
                                                      OpenStruct.new(:path => 'path3', :label => 'm3', :lineno => 3)])
     sampling = SamplingProf::Sampling.new([thread])
     sampling.process
-    nodes, samples, call_graph = sampling.result
-    assert_equal [['path3:3:m3', 0], ['path2:2:m2', 1], ['path1:1:m1', 2]], nodes
-    assert_equal [[0, [0, 1]], [1, [0, 1]], [2, [1, 1]]], samples
-    assert_equal [[[-1, 0], 1], [[0, 1], 1], [[1, 2], 1]], call_graph
+    data = sampling.result
+
+    expected = <<-DATA
+path3:3:m3,0
+path2:2:m2,1
+path1:1:m1,2
+
+0,0,1
+1,0,1
+2,1,1
+
+-1,0,1
+0,1,1
+1,2,1
+DATA
+    assert_equal expected, data
   end
 end

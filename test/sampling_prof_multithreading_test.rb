@@ -36,9 +36,9 @@ class SamplingProfMultithreadingTest < Test::Unit::TestCase
     else
       assert_equal 1, @data.size
     end
-    nodes = @data[0][0]
+    nodes = @data[0].split("\n\n")[0].split("\n")
 
-    linums = nodes.map{|a| a[0].split(':')}.select do |a|
+    linums = nodes.map{|a| a.split(':')}.select do |a|
       a[0] =~ /sampling_prof_multithreading_test.rb$/
     end.map do |a|
       a[1].to_i
