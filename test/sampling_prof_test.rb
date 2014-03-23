@@ -48,9 +48,15 @@ class SamplingProfTest < Test::Unit::TestCase
   def test_profile_and_output_text_result
     FileUtils.rm_rf(SamplingProf::DEFAULT_OUTPUT_FILE)
     @prof.profile do
-      fib(10)
+      fib(35)
     end
     assert File.exist?(SamplingProf::DEFAULT_OUTPUT_FILE)
+    runtime, nodes, counts, call_graph = File.read(SamplingProf::DEFAULT_OUTPUT_FILE).split("\n\n")
+
+    assert runtime.to_f > 0.1
+    assert nodes.split("\n").size > 1
+    assert counts.split("\n").size > 1
+    assert call_graph.split("\n").size > 1
   ensure
     FileUtils.rm_rf @prof.output_file
   end
@@ -94,6 +100,7 @@ class SamplingProfTest < Test::Unit::TestCase
     end
 
     expected_output = <<-TXT
+runtime: 1.567 secs
 total samples: 15
 self	%	total	%	name
 6	40.00%	15	100.00%	test/sampling_prof_test.rb:73:fib
@@ -116,7 +123,7 @@ TXT
     sampling = SamplingProf::Sampling.new([thread])
     sampling.process
     data = sampling.result
-
+    runtime, nodes, counts, call_graph = data.split("\n\n")
     expected = <<-DATA
 path3:3:m3,0
 path2:2:m2,1
@@ -130,6 +137,7 @@ path1:1:m1,2
 0,1,1
 1,2,1
 DATA
-    assert_equal expected, data
+    assert runtime.to_f > 0
+    assert_equal expected, [nodes, counts, call_graph].join("\n\n")
   end
 end

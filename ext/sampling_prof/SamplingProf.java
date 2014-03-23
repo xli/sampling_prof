@@ -124,8 +124,7 @@ public class SamplingProf extends RubyObject {
                 boolean endless = multithreading;
                 do {
                     Sampling sampling = new Sampling(ruby, samplingContexts);
-                    long startTime = System.currentTimeMillis();
-                    while (outputInterval == null || outputInterval > (System.currentTimeMillis() - startTime)) {
+                    while (outputInterval == null || outputInterval > sampling.runtime()) {
                         sampling.process();
                         try {
                             Thread.sleep(samplingInterval);

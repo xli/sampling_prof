@@ -46,7 +46,7 @@ class SamplingProf
   end
 
   def report(type, output=$stdout)
-    nodes, counts, call_graph = File.read(output_file).split("\n\n")
+    runtime, nodes, counts, call_graph = File.read(output_file).split("\n\n")
     nodes = nodes.split("\n").inject({}) do |ret, l|
       n, i = l.split(',')
       ret[i.to_i] = n
@@ -58,6 +58,7 @@ class SamplingProf
     end
     total_samples, report = flat_report(nodes, counts)
 
+    output.puts "runtime: #{runtime} secs"
     output.puts "total samples: #{total_samples}"
     output.puts "self\t%\ttotal\t%\tname"
     report.first(20).each do |v|

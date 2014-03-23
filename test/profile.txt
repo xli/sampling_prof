@@ -1,3 +1,5 @@
+1.567
+
 /Users/xli/.rbenv/versions/jruby-1.7.9/lib/ruby/1.8/test/unit/ui/testrunnermediator.rb:46:run_suite,6
 test/sampling_prof_test.rb:69:fib,17
 /Users/xli/.rbenv/versions/jruby-1.7.9/lib/ruby/1.8/test/unit.rb:279:(root),0

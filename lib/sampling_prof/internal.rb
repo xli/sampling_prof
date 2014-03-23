@@ -8,10 +8,15 @@ class SamplingProf
       @call_graph = Hash.new{|h,k| h[k] = 0}
       @nodes = {}
       @threads = threads
+      @start_at = Time.now
+    end
+
+    def runtime
+      Time.now - @start_at
     end
 
     def result
-      ret = []
+      ret = [runtime]
       ret << @nodes.map {|node| node.join(',')}.join("\n")
       ret << @samples.map {|count| count.flatten.join(',')}.join("\n")
       ret << @call_graph.map {|v| v.flatten.join(',')}.join("\n")
@@ -92,11 +97,10 @@ class SamplingProf
       @sampling_thread ||= Thread.start do
         loop do
           sampling = Sampling.new(@threads)
-          start_time = Time.now
           loop do
             break unless @running
             if @multithreading
-              break if output_interval < (Time.now - start_time)
+              break if output_interval < sampling.runtime
             end
             sampling.process
             sleep @sampling_interval

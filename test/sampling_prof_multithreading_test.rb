@@ -23,16 +23,17 @@ class SamplingProfMultithreadingTest < Test::Unit::TestCase
         fib(35)
       end
     end
+    start = Time.now
     thread1.join
     thread2.join
-
+    time = Time.now - start
     @prof.terminate
 
     assert_equal 1, @data.size
+    runtime, nodes, _ = @data[0].split("\n\n")
 
-    nodes = @data[0].split("\n\n")[0].split("\n")
-
-    linums = nodes.map{|a| a.split(':')}.select do |a|
+    assert runtime.to_f > time.to_i
+    linums = nodes.split("\n").map{|a| a.split(':')}.select do |a|
       a[0] =~ /sampling_prof_multithreading_test.rb$/
     end.map do |a|
       a[1].to_i

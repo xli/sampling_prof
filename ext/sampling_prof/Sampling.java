@@ -65,15 +65,23 @@ public class Sampling {
     private final Map<Path, Integer> callGraph = new HashMap<Path, Integer>();
     private final Map<Integer, Count> counts = new HashMap<Integer, Count>();
     private final Set<ThreadContext> targetContexts;
+    private final long startAt;
 
     public Sampling(Ruby ruby, Set<ThreadContext> targetContexts) {
         this.targetContexts = targetContexts;
         this.ruby = ruby;
         this.workingDir = new File("").getAbsolutePath();
+        this.startAt = System.currentTimeMillis();
+    }
+
+    public long runtime() {
+        return System.currentTimeMillis() - startAt;
     }
 
     public IRubyObject result() {
         StringBuffer buffer = new StringBuffer();
+        buffer.append((double) runtime() / 1000).append("\n");
+        buffer.append("\n");
         for (Map.Entry<String, Integer> entry1 : nodes.entrySet()) {
             buffer.append(entry1.getKey()).append(",").append(entry1.getValue());
             buffer.append("\n");
