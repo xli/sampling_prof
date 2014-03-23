@@ -58,6 +58,11 @@ class SamplingProfTest < Test::Unit::TestCase
     @prof = SamplingProf.new
     assert_equal 0.1, @prof.sampling_interval
     assert_equal false, @prof.multithreading
+    assert_equal nil, @prof.output_interval
+
+    @prof = SamplingProf.new(0.1, true)
+    assert_equal 0.1, @prof.sampling_interval
+    assert_equal true, @prof.multithreading
     assert_equal 60, @prof.output_interval
   end
 

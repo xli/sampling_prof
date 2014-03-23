@@ -11,11 +11,11 @@ class SamplingProf
 
   def initialize(sampling_interval=0.1,
                  multithreading=false,
-                 output_interval=60, #sec
+                 output_interval=nil, #sec
                  &output_handler)
     self.sampling_interval = sampling_interval
     self.multithreading = multithreading
-    self.output_interval = output_interval
+    self.output_interval = output_interval || (multithreading ? 60 : nil)
     self.output_handler = block_given? ? output_handler : default_output_handler
     internal_initialize if respond_to?(:internal_initialize)
   end

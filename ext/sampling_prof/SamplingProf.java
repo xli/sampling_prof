@@ -18,7 +18,7 @@ public class SamplingProf extends RubyObject {
 
     private Set<ThreadContext> samplingContexts = Collections.newSetFromMap(new ConcurrentHashMap<ThreadContext, Boolean>());
     private Block outputHandler;
-    private long outputInterval; // ms
+    private Long outputInterval; // ms
 
     public SamplingProf(Ruby runtime, RubyClass metaClass) {
         super(runtime, metaClass);
@@ -46,8 +46,6 @@ public class SamplingProf extends RubyObject {
     public IRubyObject setOutputInterval(IRubyObject arg) {
         if (!arg.isNil()) {
             this.outputInterval = (long) (arg.convertToFloat().getDoubleValue() * 1000);
-        } else {
-            this.outputInterval = 60 * 1000;
         }
         return arg;
     }
@@ -64,6 +62,9 @@ public class SamplingProf extends RubyObject {
 
     @JRubyMethod(name = "output_interval")
     public IRubyObject getOutputInterval() {
+        if (this.outputInterval == null) {
+            return getRuntime().getNil();
+        }
         return JavaUtil.convertJavaToRuby(getRuntime(), (double) this.outputInterval / 1000);
     }
 
@@ -122,8 +123,7 @@ public class SamplingProf extends RubyObject {
                 do {
                     Sampling sampling = new Sampling(ruby, samplingContexts);
                     long startTime = System.currentTimeMillis();
-                    // todo: outputInterval should not hook up with multithreading
-                    while (!multithreading || (multithreading && outputInterval > (System.currentTimeMillis() - startTime))) {
+                    while (outputInterval == null || outputInterval > (System.currentTimeMillis() - startTime)) {
                         sampling.process();
                         try {
                             Thread.sleep(samplingInterval);
