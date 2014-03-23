@@ -8,7 +8,7 @@ class SamplingProfMultithreadingTest < Test::Unit::TestCase
   end
 
   def test_profiling_multithreading_together
-    @prof = SamplingProf.new(0.01, true, 50) do |data|
+    @prof = SamplingProf.new(0.01, true) do |data|
       @data << data
     end
 
@@ -28,14 +28,8 @@ class SamplingProfMultithreadingTest < Test::Unit::TestCase
 
     @prof.terminate
 
-    # c-ruby 2.1 running a lot faster than jruby 1.7.9 --1.8
-    # so in cruby we got 1 copy, but in jruby we got more than 1 set
-# data
-    if RUBY_PLATFORM =~ /java/
-      assert_equal 3, @data.size
-    else
-      assert_equal 1, @data.size
-    end
+    assert_equal 1, @data.size
+
     nodes = @data[0].split("\n\n")[0].split("\n")
 
     linums = nodes.map{|a| a.split(':')}.select do |a|
@@ -48,23 +42,28 @@ class SamplingProfMultithreadingTest < Test::Unit::TestCase
     assert linums.include?(23), "should include line number running thread2"
   end
 
-  def test_handler_for_start_method_will_be_ignored
-    @prof = SamplingProf.new(0.01, true, 50) do |data|
+  def test_output_interval
+    @prof = SamplingProf.new(0.01, true, 0.1) do |data|
       @data << data
     end
-    @prof.start(lambda {|d| raise "should not be called"})
-    assert @prof.stop
-    assert @prof.terminate
-  end
 
-  def test_use_default_flush_count
-    @prof = SamplingProf.new(0.01, true) do |data|
-      @data << data
+    thread1 = Thread.start do
+      @prof.profile do
+        fib(35)
+      end
     end
-    @prof.start(lambda {|d| raise "should not be called"})
-    assert @prof.stop
-    assert_equal [], @data
-    assert @prof.terminate
-    assert_equal 1, @data.size
+
+    thread2 = Thread.start do
+      @prof.profile do
+        fib(35)
+      end
+    end
+    thread1.join
+    thread2.join
+
+    @prof.terminate
+
+    # no exact num can get, knowing bigger than 2 probably is good enough
+    assert @data.size > 2
   end
 end

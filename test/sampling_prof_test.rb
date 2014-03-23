@@ -37,22 +37,28 @@ class SamplingProfTest < Test::Unit::TestCase
 
   def test_start_profile_with_specific_output_handler
     @data = nil
-    handler = lambda do |data|
+    @prof = SamplingProf.new(0.01) do |data|
       @data = data
     end
-    @prof.start(handler)
-    @prof.stop
+    @prof.profile { fib(10) }
     assert @data
   end
 
   def test_profile_and_output_text_result
     FileUtils.rm_rf(SamplingProf::DEFAULT_OUTPUT_FILE)
     @prof.profile do
-      fib(25)
+      fib(10)
     end
     assert File.exist?(SamplingProf::DEFAULT_OUTPUT_FILE)
   ensure
     FileUtils.rm_rf @prof.output_file
+  end
+
+  def test_default_options
+    @prof = SamplingProf.new
+    assert_equal 0.1, @prof.sampling_interval
+    assert_equal false, @prof.multithreading
+    assert_equal 60, @prof.output_interval
   end
 
   def test_flat_report

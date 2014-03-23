@@ -1,6 +1,4 @@
-import org.jruby.Ruby;
-import org.jruby.RubyClass;
-import org.jruby.RubyObject;
+import org.jruby.*;
 import org.jruby.anno.JRubyClass;
 import org.jruby.anno.JRubyMethod;
 import org.jruby.javasupport.JavaUtil;
@@ -14,39 +12,66 @@ import java.util.concurrent.ConcurrentHashMap;
 @JRubyClass(name = "SamplingProf")
 public class SamplingProf extends RubyObject {
 
-    private long samplePeriod; // ms
+    private long samplingInterval; // ms
     private Thread samplingThread;
     private boolean multithreading = false;
-    private int multithreadingFlushCount;
 
-    private Set<ThreadContext> samplingContexts;
-    private Block defaultCallback;
+    private Set<ThreadContext> samplingContexts = Collections.newSetFromMap(new ConcurrentHashMap<ThreadContext, Boolean>());
+    private Block outputHandler;
+    private long outputInterval; // ms
 
     public SamplingProf(Ruby runtime, RubyClass metaClass) {
         super(runtime, metaClass);
     }
 
-    @JRubyMethod(name = "initialize", required = 1, optional = 2)
-    public IRubyObject initialize(IRubyObject[] args, Block block) {
-        this.samplePeriod = (long) (args[0].convertToFloat().getDoubleValue() * 1000);
-        this.samplingContexts = Collections.newSetFromMap(new ConcurrentHashMap<ThreadContext, Boolean>());
-        this.defaultCallback = block.isGiven() ? block : null;
-        if (args.length >= 2) {
-            this.multithreading = args[1].isTrue();
-            if (args.length == 3) {
-                this.multithreadingFlushCount = args[2].convertToInteger().getBigIntegerValue().intValue();
-            } else {
-                this.multithreadingFlushCount = (int) (2 * 60 * 1000 / this.samplePeriod);
-            }
-        }
-        return super.getRuntime().getNil();
+    @JRubyMethod(name = "sampling_interval=", required = 1)
+    public IRubyObject setSamplingInterval(IRubyObject arg) {
+        this.samplingInterval = (long) (arg.convertToFloat().getDoubleValue() * 1000);
+        return arg;
     }
 
-    @JRubyMethod(name = "__start__")
-    public IRubyObject start(Block callback) {
+    @JRubyMethod(name = "output_handler=", required = 1)
+    public IRubyObject setOutputHandler(IRubyObject arg) {
+        this.outputHandler = ((RubyProc) arg).getBlock();
+        return arg;
+    }
+
+    @JRubyMethod(name = "multithreading=", required = 1)
+    public IRubyObject setMultithreading(IRubyObject arg) {
+        this.multithreading = arg.isTrue();
+        return arg;
+    }
+
+    @JRubyMethod(name = "output_interval=", required = 1)
+    public IRubyObject setOutputInterval(IRubyObject arg) {
+        if (!arg.isNil()) {
+            this.outputInterval = (long) (arg.convertToFloat().getDoubleValue() * 1000);
+        } else {
+            this.outputInterval = 60 * 1000;
+        }
+        return arg;
+    }
+
+    @JRubyMethod(name = "sampling_interval")
+    public IRubyObject getSamplingInterval() {
+        return JavaUtil.convertJavaToRuby(getRuntime(), (double) this.samplingInterval / 1000);
+    }
+
+    @JRubyMethod(name = "multithreading")
+    public IRubyObject getMultithreading() {
+        return JavaUtil.convertJavaToRuby(getRuntime(), this.multithreading);
+    }
+
+    @JRubyMethod(name = "output_interval")
+    public IRubyObject getOutputInterval() {
+        return JavaUtil.convertJavaToRuby(getRuntime(), (double) this.outputInterval / 1000);
+    }
+
+    @JRubyMethod
+    public IRubyObject start() {
         if (this.multithreading || !running()) {
             samplingContexts.add(this.getRuntime().getCurrentContext());
-            startSampling(this.defaultCallback != null ? defaultCallback : callback);
+            startSampling();
             return this.getRuntime().getTrue();
         } else {
             return this.getRuntime().getFalse();
@@ -82,9 +107,12 @@ public class SamplingProf extends RubyObject {
         return samplingThread != null;
     }
 
-    private synchronized void startSampling(final Block callback) {
+    private synchronized void startSampling() {
         if (running()) {
             return;
+        }
+        if (outputHandler == null) {
+            throw getRuntime().newArgumentError("Please setup output handler before start profiling");
         }
         final Ruby ruby = this.getRuntime();
         samplingThread = new Thread(new Runnable() {
@@ -93,17 +121,18 @@ public class SamplingProf extends RubyObject {
                 boolean endless = multithreading;
                 do {
                     Sampling sampling = new Sampling(ruby, samplingContexts);
-                    int flushCount = multithreadingFlushCount;
-                    while (!multithreading || (multithreading && flushCount-- > 0)) {
+                    long startTime = System.currentTimeMillis();
+                    // todo: outputInterval should not hook up with multithreading
+                    while (!multithreading || (multithreading && outputInterval > (System.currentTimeMillis() - startTime))) {
                         sampling.process();
                         try {
-                            Thread.sleep(samplePeriod);
+                            Thread.sleep(samplingInterval);
                         } catch (InterruptedException e) {
                             endless = false;
                             break;
                         }
                     }
-                    callback.call(ruby.getCurrentContext(), sampling.result());
+                    outputHandler.call(ruby.getCurrentContext(), sampling.result());
                 } while(endless);
             }
         });

@@ -1,4 +1,6 @@
 require 'set'
+require 'thread'
+
 class SamplingProf
   class Sampling
     def initialize(threads)
@@ -75,35 +77,31 @@ class SamplingProf
     end
   end
 
-  def initialize(period, multithreading=false, multithreading_flush_count=2*60/period, &block)
-    @period = period
-    @multithreading = multithreading
-    @multithreading_flush_count = multithreading_flush_count
-    @output_handler = block_given? ? block : nil
+  attr_accessor :sampling_interval, :multithreading, :output_interval, :output_handler
+
+  def internal_initialize
+    @running = false
     @sampling_thread = nil
     @threads = Threads.new
-    @running = false
   end
 
-  def __start__(&block)
+  def start
     if @multithreading || !@running
       @running = true
       @threads.add(Thread.current)
-      callback = @output_handler ? @output_handler : block
       @sampling_thread ||= Thread.start do
         loop do
           sampling = Sampling.new(@threads)
-          flush_count = @multithreading_flush_count
+          start_time = Time.now
           loop do
             break unless @running
             if @multithreading
-              flush_count-=1
-              break if flush_count <= 0
+              break if output_interval < (Time.now - start_time)
             end
             sampling.process
-            sleep @period
+            sleep @sampling_interval
           end
-          callback.call(sampling.result)
+          @output_handler.call(sampling.result)
           break unless @running
         end
       end

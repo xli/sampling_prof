@@ -9,6 +9,17 @@ class SamplingProf
 
   attr_writer :output_file
 
+  def initialize(sampling_interval=0.1,
+                 multithreading=false,
+                 output_interval=60, #sec
+                 &output_handler)
+    self.sampling_interval = sampling_interval
+    self.multithreading = multithreading
+    self.output_interval = output_interval
+    self.output_handler = block_given? ? output_handler : default_output_handler
+    internal_initialize if respond_to?(:internal_initialize)
+  end
+
   def output_file
     @output_file ||= DEFAULT_OUTPUT_FILE
   end
@@ -18,10 +29,6 @@ class SamplingProf
     yield if block_given?
   ensure
     stop if block_given?
-  end
-
-  def start(handler=default_output_handler)
-    __start__(&handler)
   end
 
   def default_output_handler
