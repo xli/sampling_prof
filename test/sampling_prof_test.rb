@@ -42,6 +42,7 @@ class SamplingProfTest < Test::Unit::TestCase
     end
     @prof.profile { fib(10) }
     assert @data
+    assert !File.exist?(SamplingProf::DEFAULT_OUTPUT_FILE)
   end
 
   def test_profile_and_output_text_result
@@ -64,6 +65,15 @@ class SamplingProfTest < Test::Unit::TestCase
     assert_equal 0.1, @prof.sampling_interval
     assert_equal true, @prof.multithreading
     assert_equal 60, @prof.output_interval
+  end
+
+  def test_change_default_output_interval_to_nil
+    @prof = SamplingProf.new(0.1, true, nil)
+    assert_nil @prof.output_interval
+
+    @prof = SamplingProf.new(0.1, true)
+    @prof.output_interval = nil
+    assert_nil @prof.output_interval
   end
 
   def test_flat_report

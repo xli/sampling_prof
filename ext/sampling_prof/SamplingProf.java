@@ -44,7 +44,9 @@ public class SamplingProf extends RubyObject {
 
     @JRubyMethod(name = "output_interval=", required = 1)
     public IRubyObject setOutputInterval(IRubyObject arg) {
-        if (!arg.isNil()) {
+        if (arg.isNil()) {
+            this.outputInterval = null;
+        } else {
             this.outputInterval = (long) (arg.convertToFloat().getDoubleValue() * 1000);
         }
         return arg;

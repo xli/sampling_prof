@@ -9,13 +9,19 @@ class SamplingProf
 
   attr_writer :output_file
 
-  def initialize(sampling_interval=0.1,
-                 multithreading=false,
-                 output_interval=nil, #sec
-                 &output_handler)
-    self.sampling_interval = sampling_interval
-    self.multithreading = multithreading
-    self.output_interval = output_interval || (multithreading ? 60 : nil)
+  # options:
+  #   sampling_interval: default to 0.1 second
+  #   multithreading: default to false
+  #   output_interval: default to (multithreading ? 60 : nil)
+  #   &output_handler: default to write into output_file
+  def initialize(*args, &output_handler)
+    self.sampling_interval = args[0] || 0.1
+    self.multithreading = args[1] || false
+    if args.length > 2
+      self.output_interval = args[2]
+    else
+      self.output_interval = multithreading ? 60 : nil
+    end
     self.output_handler = block_given? ? output_handler : default_output_handler
     internal_initialize if respond_to?(:internal_initialize)
   end
