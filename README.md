@@ -50,7 +50,7 @@ Output data is divided into a number of chunks. Chunks are separated by 2 "\n" c
 
 List of chunks in order:
 
-1. runtime:
+1. runtime
 2. call element id map
 3. counts
 4. call graph
@@ -59,7 +59,7 @@ List of chunks in order:
 
 A number represents time of collecting data.
 It should be only one line.
-The time unit is second.
+The time unit is ms.
 Runtime can be used to compute an estimated runtime of a call element.
 
 ### call element id map

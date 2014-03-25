@@ -80,7 +80,7 @@ public class Sampling {
 
     public IRubyObject result() {
         StringBuffer buffer = new StringBuffer();
-        buffer.append((double) runtime() / 1000).append("\n");
+        buffer.append(runtime()).append("\n");
         buffer.append("\n");
         for (Map.Entry<String, Integer> entry1 : nodes.entrySet()) {
             buffer.append(entry1.getKey()).append(",").append(entry1.getValue());

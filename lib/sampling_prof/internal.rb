@@ -16,7 +16,7 @@ class SamplingProf
     end
 
     def result
-      ret = [runtime]
+      ret = [runtime * 1000]
       ret << @nodes.map {|node| node.join(',')}.join("\n")
       ret << @samples.map {|count| count.flatten.join(',')}.join("\n")
       ret << @call_graph.map {|v| v.flatten.join(',')}.join("\n")

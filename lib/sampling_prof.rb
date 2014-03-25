@@ -58,7 +58,7 @@ class SamplingProf
     end
     total_samples, report = flat_report(nodes, counts)
 
-    output.puts "runtime: #{runtime} secs"
+    output.puts "runtime: #{runtime.to_f/1000} secs"
     output.puts "total samples: #{total_samples}"
     output.puts "self\t%\ttotal\t%\tname"
     report.first(20).each do |v|

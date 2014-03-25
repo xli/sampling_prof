@@ -53,7 +53,7 @@ class SamplingProfTest < Test::Unit::TestCase
     assert File.exist?(SamplingProf::DEFAULT_OUTPUT_FILE)
     runtime, nodes, counts, call_graph = File.read(SamplingProf::DEFAULT_OUTPUT_FILE).split("\n\n")
 
-    assert runtime.to_f > 0.1
+    assert runtime.to_f > 100 # unit is ms
     assert nodes.split("\n").size > 1
     assert counts.split("\n").size > 1
     assert call_graph.split("\n").size > 1
