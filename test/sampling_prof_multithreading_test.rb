@@ -70,15 +70,23 @@ class SamplingProfMultithreadingTest < Test::Unit::TestCase
 
     # puts "[DEBUG]runtimes => #{runtimes.inspect}"
 
+    assert_equal 2, runtimes.size
     assert((runtimes[0] >= 20 && runtimes[0] <= 30), "first data collected runtime(#{runtimes[0]}) should >= 0.02 sec and <= 0.03 sec")
 
     assert((runtimes[1] >= 1 && runtimes[1] <= 10), "second data collected runtime(#{runtimes[1]}) should >= 0.001 sec and <= 0.01 sec")
 
     runtime = runtimes.reduce(:+)
     assert((runtime >= 30 && runtime <= 40), "runtime: #{runtime} should >= 0.03 sec and <= 0.04 sec")
+  end
 
-    # last one should be zero, because we add 0.05 sec sleep at line 64
-    assert_equal 0, runtimes.last
+  def test_should_not_yield_output_handler_when_there_is_no_data_collected
+    @prof = SamplingProf.new(0.01, true, 0.1) do |data|
+      @data << data
+    end
+    @prof.profile {}
+    sleep 0.1
+    @prof.terminate
+    assert_equal [], @data
   end
 
   def test_output_interval

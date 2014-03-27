@@ -143,7 +143,9 @@ public class SamplingProf extends RubyObject {
                             break;
                         }
                     }
-                    outputHandler.call(ruby.getCurrentContext(), sampling.result());
+                    if (sampling.hasSamplingData()) {
+                        outputHandler.call(ruby.getCurrentContext(), sampling.result());
+                    }
                 } while(endless);
             }
         });

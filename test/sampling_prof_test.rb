@@ -13,7 +13,7 @@ class SamplingProfTest < Test::Unit::TestCase
       @data << data
     end
     @prof.profile do
-      fib(5)
+      sleep 0.02
     end
     assert @data.size > 0
   end
@@ -40,7 +40,10 @@ class SamplingProfTest < Test::Unit::TestCase
     @prof = SamplingProf.new(0.01) do |data|
       @data = data
     end
-    @prof.profile { fib(10) }
+    @prof.profile do
+      sleep 0.02
+    end
+
     assert @data
     assert !File.exist?(SamplingProf::DEFAULT_OUTPUT_FILE)
   end

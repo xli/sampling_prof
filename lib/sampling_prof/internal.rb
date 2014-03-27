@@ -15,6 +15,10 @@ class SamplingProf
       Time.now - @start_at
     end
 
+    def sampling_data?
+      !@nodes.empty?
+    end
+
     def result
       ret = [@threads.sampling_runtime * 1000]
       ret << @nodes.map {|node| node.join(',')}.join("\n")
@@ -121,7 +125,9 @@ class SamplingProf
             sampling.process
             sleep @sampling_interval
           end
-          @output_handler.call(sampling.result)
+          if sampling.sampling_data?
+            @output_handler.call(sampling.result)
+          end
           break unless @running
         end
       end

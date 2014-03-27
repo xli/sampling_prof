@@ -92,6 +92,10 @@ public class Sampling {
         return ret;
     }
 
+    public boolean hasSamplingData() {
+        return !nodes.isEmpty();
+    }
+
     public IRubyObject result() {
         StringBuffer buffer = new StringBuffer();
         buffer.append(samplingRuntime()).append("\n");
