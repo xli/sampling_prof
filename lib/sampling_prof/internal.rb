@@ -16,7 +16,7 @@ class SamplingProf
     end
 
     def result
-      ret = [runtime * 1000]
+      ret = [@threads.sampling_runtime * 1000]
       ret << @nodes.map {|node| node.join(',')}.join("\n")
       ret << @samples.map {|count| count.flatten.join(',')}.join("\n")
       ret << @call_graph.map {|v| v.flatten.join(',')}.join("\n")
@@ -61,8 +61,9 @@ class SamplingProf
 
   class Threads
     def initialize
-      @set = Set.new
+      @hash = {}
       @mutex = Mutex.new
+      @remain_sampling_time = 0
     end
 
     def each(&block)
@@ -70,15 +71,30 @@ class SamplingProf
     end
 
     def dup
-      @mutex.synchronize { @set.dup }
+      @mutex.synchronize { @hash.keys.dup }
     end
 
     def add(obj)
-      @mutex.synchronize { @set.add(obj) }
+      @mutex.synchronize { @hash[obj] = Time.now }
+    end
+
+    def sampling_runtime
+      now = Time.now
+      @mutex.synchronize do
+        ret, @remain_sampling_time = @remain_sampling_time, 0
+        @hash.keys.each do |k|
+          ret += now - @hash[k]
+          @hash[k] = now
+        end
+        ret
+      end
     end
 
     def delete(obj)
-      @mutex.synchronize { @set.delete(obj) }
+      @mutex.synchronize do
+        start = @hash.delete(obj)
+        @remain_sampling_time += Time.now - start
+      end
     end
   end
 

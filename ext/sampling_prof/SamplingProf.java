@@ -8,6 +8,8 @@ import org.jruby.runtime.builtin.IRubyObject;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.atomic.AtomicLong;
 
 @JRubyClass(name = "SamplingProf")
 public class SamplingProf extends RubyObject {
@@ -16,9 +18,10 @@ public class SamplingProf extends RubyObject {
     private Thread samplingThread;
     private boolean multithreading = false;
 
-    private Set<ThreadContext> samplingContexts = Collections.newSetFromMap(new ConcurrentHashMap<ThreadContext, Boolean>());
+    private ConcurrentMap<ThreadContext, AtomicLong> samplingContexts = new ConcurrentHashMap<ThreadContext, AtomicLong>();
     private Block outputHandler;
     private Long outputInterval; // ms
+    private AtomicLong remainSamplingTime = new AtomicLong();
 
     public SamplingProf(Ruby runtime, RubyClass metaClass) {
         super(runtime, metaClass);
@@ -73,7 +76,7 @@ public class SamplingProf extends RubyObject {
     @JRubyMethod
     public IRubyObject start() {
         if (this.multithreading || !running()) {
-            samplingContexts.add(this.getRuntime().getCurrentContext());
+            samplingContexts.put(this.getRuntime().getCurrentContext(), new AtomicLong(System.currentTimeMillis()));
             startSampling();
             return this.getRuntime().getTrue();
         } else {
@@ -86,7 +89,14 @@ public class SamplingProf extends RubyObject {
         if (!this.multithreading) {
             return terminate();
         } else {
-            return JavaUtil.convertJavaToRuby(this.getRuntime(), samplingContexts.remove(getRuntime().getCurrentContext()));
+            ThreadContext key = getRuntime().getCurrentContext();
+            if (samplingContexts.containsKey(key)) {
+                AtomicLong start = samplingContexts.remove(key);
+                remainSamplingTime.addAndGet(System.currentTimeMillis() - start.get());
+                return this.getRuntime().getTrue();
+            } else {
+                return this.getRuntime().getFalse();
+            }
         }
     }
 
@@ -123,7 +133,7 @@ public class SamplingProf extends RubyObject {
             public void run() {
                 boolean endless = multithreading;
                 do {
-                    Sampling sampling = new Sampling(ruby, samplingContexts);
+                    Sampling sampling = new Sampling(ruby, samplingContexts, remainSamplingTime);
                     while (outputInterval == null || outputInterval > sampling.runtime()) {
                         sampling.process();
                         try {

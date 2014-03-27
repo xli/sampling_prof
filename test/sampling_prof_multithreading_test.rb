@@ -43,6 +43,44 @@ class SamplingProfMultithreadingTest < Test::Unit::TestCase
     assert linums.include?(23), "should include line number running thread2"
   end
 
+  def test_caculate_runtime
+    @prof = SamplingProf.new(0.005, true, 0.01) do |data|
+      @data << data
+    end
+
+    thread1 = Thread.start do
+      @prof.profile do
+        sleep 0.01
+      end
+    end
+    thread2 = Thread.start do
+      @prof.profile do
+        sleep 0.02
+      end
+    end
+    thread1.join
+    thread2.join
+
+    sleep 0.05
+
+    @prof.terminate
+    runtimes = @data.map do |d|
+      d.split("\n\n").first.to_i
+    end
+
+    # puts "[DEBUG]runtimes => #{runtimes.inspect}"
+
+    assert((runtimes[0] >= 20 && runtimes[0] <= 30), "first data collected runtime(#{runtimes[0]}) should >= 0.02 sec and <= 0.03 sec")
+
+    assert((runtimes[1] >= 1 && runtimes[1] <= 10), "second data collected runtime(#{runtimes[1]}) should >= 0.001 sec and <= 0.01 sec")
+
+    runtime = runtimes.reduce(:+)
+    assert((runtime >= 30 && runtime <= 40), "runtime: #{runtime} should >= 0.03 sec and <= 0.04 sec")
+
+    # last one should be zero, because we add 0.05 sec sleep at line 64
+    assert_equal 0, runtimes.last
+  end
+
   def test_output_interval
     @prof = SamplingProf.new(0.01, true, 0.1) do |data|
       @data << data

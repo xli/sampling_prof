@@ -120,7 +120,11 @@ TXT
     thread = OpenStruct.new(:backtrace_locations => [OpenStruct.new(:path => 'path1', :label => 'm1', :lineno => 1),
                                                      OpenStruct.new(:path => 'path2', :label => 'm2', :lineno => 2),
                                                      OpenStruct.new(:path => 'path3', :label => 'm3', :lineno => 3)])
-    sampling = SamplingProf::Sampling.new([thread])
+    threads = [thread]
+    def threads.sampling_runtime
+      1.23
+    end
+    sampling = SamplingProf::Sampling.new(threads)
     sampling.process
     data = sampling.result
     runtime, nodes, counts, call_graph = data.split("\n\n")
@@ -137,7 +141,7 @@ path1:1:m1,2
 0,1,1
 1,2,1
 DATA
-    assert runtime.to_f > 0
+    assert_equal 1230, runtime.to_i
     assert_equal expected, [nodes, counts, call_graph].join("\n\n")
   end
 end

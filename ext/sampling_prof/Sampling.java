@@ -12,6 +12,9 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Created by Xiao Li on 3/21/14.
@@ -61,15 +64,17 @@ public class Sampling {
 
     private final String workingDir;
     private final Ruby ruby;
+    private AtomicLong remainSamplingTime;
     private final Map<String, Integer> nodes = new HashMap<String, Integer>();
     private final Map<Path, Integer> callGraph = new HashMap<Path, Integer>();
     private final Map<Integer, Count> counts = new HashMap<Integer, Count>();
-    private final Set<ThreadContext> targetContexts;
+    private final ConcurrentMap<ThreadContext, AtomicLong> contexts;
     private final long startAt;
 
-    public Sampling(Ruby ruby, Set<ThreadContext> targetContexts) {
-        this.targetContexts = targetContexts;
+    public Sampling(Ruby ruby, ConcurrentMap<ThreadContext, AtomicLong> contexts, AtomicLong remainSamplingTime) {
+        this.contexts = contexts;
         this.ruby = ruby;
+        this.remainSamplingTime = remainSamplingTime;
         this.workingDir = new File("").getAbsolutePath();
         this.startAt = System.currentTimeMillis();
     }
@@ -78,9 +83,18 @@ public class Sampling {
         return System.currentTimeMillis() - startAt;
     }
 
+    public long samplingRuntime() {
+        long now = System.currentTimeMillis();
+        long ret = remainSamplingTime.getAndSet(0);
+        for(AtomicLong start : contexts.values()) {
+            ret += now - start.getAndSet(now);
+        }
+        return ret;
+    }
+
     public IRubyObject result() {
         StringBuffer buffer = new StringBuffer();
-        buffer.append(runtime()).append("\n");
+        buffer.append(samplingRuntime()).append("\n");
         buffer.append("\n");
         for (Map.Entry<String, Integer> entry1 : nodes.entrySet()) {
             buffer.append(entry1.getKey()).append(",").append(entry1.getValue());
@@ -103,7 +117,7 @@ public class Sampling {
     }
 
     public void process() {
-        for (ThreadContext context : targetContexts) {
+        for (ThreadContext context : contexts.keySet()) {
             if (context.getThread() == null) {
                 continue;
             }
