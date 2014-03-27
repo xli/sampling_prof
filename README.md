@@ -62,6 +62,9 @@ It should be only one line.
 The time unit is ms.
 Runtime can be used to compute an estimated runtime of a call element.
 
+When it's multithreading mode, the runtime result is a little bit tricky.
+But think about we queuing up all threads, and put them into single thread, the time doing sampling in this one single thread is the runtime we output here.
+
 ### call element id map
 
 For storage efficiency, we build this map for counts and call graph chunks to use id instead of a call element string.
