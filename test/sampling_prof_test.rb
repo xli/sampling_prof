@@ -123,10 +123,8 @@ TXT
     thread = OpenStruct.new(:backtrace_locations => [OpenStruct.new(:path => 'path1', :label => 'm1', :lineno => 1),
                                                      OpenStruct.new(:path => 'path2', :label => 'm2', :lineno => 2),
                                                      OpenStruct.new(:path => 'path3', :label => 'm3', :lineno => 3)])
-    threads = [thread]
-    def threads.sampling_runtime
-      1.23
-    end
+    threads = SamplingProf::Threads.new
+    threads.add(thread, Time.now - 1.23)
     sampling = SamplingProf::Sampling.new(threads)
     sampling.process
     data = sampling.result

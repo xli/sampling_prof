@@ -35,6 +35,10 @@ The default value is 0.1 seconds.
 
 When running SamplingProf in multithreading environment (e.g. Rails multithreading production environment), you need turn on multithreading mode so that you can profile all requests processing at same time cross threads.
 
+For performance concerns, multithreading mode will only take limit number of threads' sample while profiling. The default max samples of the threads is 4, you can change it by set max_sampling_threads.
+
+Since we randomly find max_sampling_threads number of threads in profiling threads, the result is still a statistical approximation.
+
 ### output interval
 
 Output interval controls how frequent SamplingProf should call output handler to flush out cached data.

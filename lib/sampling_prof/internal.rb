@@ -28,7 +28,7 @@ class SamplingProf
     end
 
     def process
-      @threads.each do |thread|
+      @threads.sample_threads.each do |thread|
         locations = thread.backtrace_locations
         from = -1
         paths = []
@@ -64,22 +64,21 @@ class SamplingProf
   end
 
   class Threads
+    attr_accessor :max
+
     def initialize
       @hash = {}
       @mutex = Mutex.new
       @remain_sampling_time = 0
+      @max = 4
     end
 
-    def each(&block)
-      dup.each(&block)
+    def sample_threads
+      @mutex.synchronize { @hash.keys.dup.shuffle[0..@max] }
     end
 
-    def dup
-      @mutex.synchronize { @hash.keys.dup }
-    end
-
-    def add(obj)
-      @mutex.synchronize { @hash[obj] = Time.now }
+    def add(obj, time=Time.now)
+      @mutex.synchronize { @hash[obj] = time }
     end
 
     def sampling_runtime
@@ -108,6 +107,10 @@ class SamplingProf
     @running = false
     @sampling_thread = nil
     @threads = Threads.new
+  end
+
+  def max_sampling_threads=(max)
+    @threads.max = max
   end
 
   def start
