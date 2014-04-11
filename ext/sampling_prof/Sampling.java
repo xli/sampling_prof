@@ -58,7 +58,6 @@ public class Sampling {
 
     private static final String NODE_DATA_SPLITTER = ":";
 
-    private final String workingDir;
     private final Ruby ruby;
     private final Map<String, Integer> nodes = new HashMap<String, Integer>();
     private final Map<Path, Integer> callGraph = new HashMap<Path, Integer>();
@@ -69,7 +68,6 @@ public class Sampling {
     public Sampling(Ruby ruby, SamplingContexts contexts) {
         this.contexts = contexts;
         this.ruby = ruby;
-        this.workingDir = new File("").getAbsolutePath();
         this.startAt = System.currentTimeMillis();
     }
 
@@ -166,15 +164,11 @@ public class Sampling {
 
     private String node(RubyStackTraceElement backtrace) {
         StringBuffer buffer = new StringBuffer();
-        buffer.append(relativePath(backtrace.getFileName())).append(NODE_DATA_SPLITTER).
+        buffer.append(backtrace.getFileName()).append(NODE_DATA_SPLITTER).
                 append(backtrace.getLineNumber()).append(NODE_DATA_SPLITTER).
                 append(backtrace.getMethodName());
         return buffer.toString();
 
-    }
-
-    private String relativePath(String fn) {
-        return fn.replaceFirst(this.workingDir, ".");
     }
 
     private void log(Object obj) {
