@@ -93,7 +93,7 @@ SamplingProf collects count of each call element at runtime. There are 2 type of
 
 Same with call element id map, we use comma to separate data, and one line represents one call element data.
 Here we use call element id instead of call element string to reference the call element.
-The line looks like this: <call element id>,<self count>,<total count>
+The line looks like this: [call element id],[self count],[total count]
 
 ### call graph
 
@@ -101,8 +101,8 @@ SamplingProf collects counts of function calls. One function call is A call elem
 
 The call graph stores the counts of function calls.
 Every line is one function call data.
-the line looks like this: <call element id1>,<call element id2>,<count>
+the line looks like this: [call element id1],[call element id2],[count]
 
-Direct recursive calls are recorded as: <call element id1>,<call element id1>,<count>
+Direct recursive calls are recorded as: [call element id1],[call element id1],[count]
 
 Indirect recursive calls are ignored as function call only have direct call info. Hence the data maybe odd when there are indirect recursive calls.
