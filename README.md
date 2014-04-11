@@ -8,10 +8,10 @@ Quick start
 
 For single thread profiling, start with default options:
 
-  prof = SamplingProf.new
-  prof.profile do
-  ... your code ...
-  end
+    prof = SamplingProf.new
+    prof.profile do
+      ... your code ...
+    end
 
 After profiling finished, the output will be write to file SamplingProf::DEFAULT_OUTPUT_FILE
 
