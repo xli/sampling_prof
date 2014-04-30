@@ -1,7 +1,7 @@
 SamplingProf
 ===============
 
-SamplingProf is a profiling tool that operates by sampling your running thread stacktrace. The result is statistical approximation, but it allows your code to run near full speed.
+SamplingProf is a statistical profiler or sampling profiler that operates by sampling your running thread stacktrace. The result is statistical approximation, but it allows your code to run near full speed.
 
 Quick start
 ---------------
