@@ -12,40 +12,34 @@ For single thread profiling, start with default options:
     prof.profile do
       ... your code ...
     end
+    at_exit { prof.terminate }
 
 After profiling finished, the output will be write to file SamplingProf::DEFAULT_OUTPUT_FILE
 
 Options
 ---------------
 
-SamplingProf class initializer takes 3 arguments:
+SamplingProf class initializer takes 1 argument:
 
 1. sampling interval: seconds
-2. multithreading: boolean
-3. output interval: seconds
 
 SamplingProf class also takes block as another option to overwite default output handler, the default output handler will write output data to a local file defined by output_file attribute, which is default to SamplingProf::DEFAULT_OUTPUT_FILE
+
+When a SamplingProf is initialized, a thread will be started to handle sampling process.
+So you need call SamplingProf#terminate to shutdown the sampling thread after everything is done.
 
 ### Sampling interval
 
 This is an interval to control how frequent SamplingProf should take sample of target thread stacktrace.
 The default value is 0.1 seconds.
 
-### Multithreading mode
+### Multithreading
 
-When running SamplingProf in multithreading environment (e.g. Rails multithreading production environment), you need turn on multithreading mode so that you can profile all requests processing at same time cross threads.
+When running SamplingProf in multithreading environment (e.g. Rails multithreading production environment), it can profile all requests processing at same time cross threads.
 
-For performance concerns, multithreading mode will only take limit number of threads' sample while profiling. The default max samples of the threads is 4, you can change it by set max_sampling_threads.
+For performance concerns, you should controll how many number of threads' sample while profiling.
 
-Since we randomly find max_sampling_threads number of threads in profiling threads, the result is still a statistical approximation.
-
-### output interval
-
-Output interval controls how frequent SamplingProf should call output handler to flush out cached data.
-The default value of output interval is depend on the option of multithreading.
-When multithreading is off, the default value is nil, because single thread mode is more likely only need to do once data output when the profiling finished.
-
-When multithreading is on, the default value is 60 seconds, means every 60 seconds SamplingProf will call output handler once to flush out data and restart to cumulate data.
+Randomly select some threads for profiling, the result is still a statistical approximation.
 
 Output data format
 ---------------

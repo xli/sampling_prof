@@ -3,11 +3,10 @@ require 'thread'
 
 class SamplingProf
   class Sampling
-    def initialize(threads)
+    def initialize
       @samples = Hash.new{|h,k| h[k] = [0, 0] }
       @call_graph = Hash.new{|h,k| h[k] = 0}
       @nodes = {}
-      @threads = threads
       @start_at = Time.now
     end
 
@@ -20,37 +19,35 @@ class SamplingProf
     end
 
     def result
-      ret = [@threads.sampling_runtime * 1000]
+      ret = [runtime * 1000]
       ret << @nodes.map {|node| node.join(',')}.join("\n")
       ret << @samples.map {|count| count.flatten.join(',')}.join("\n")
       ret << @call_graph.map {|v| v.flatten.join(',')}.join("\n")
       "#{ret.join("\n\n")}\n"
     end
 
-    def process
-      @threads.sample_threads.each do |thread|
-        locations = thread.backtrace_locations
-        from = -1
-        paths = []
-        calls = []
-        top_index = locations.size - 1
-        locations.reverse.each_with_index do |loc, i|
-          node_id = node_id(loc)
-          if i == top_index
-            @samples[node_id][0] += 1
-          end
-
-          path = [from, node_id]
-          if !paths.include?(path)
-            paths << path
-            @call_graph[path] += 1
-          end
-          if !calls.include?(node_id)
-            calls << node_id
-            @samples[node_id][1] += 1
-          end
-          from = node_id
+    def process(thread)
+      locations = thread.backtrace_locations
+      from = -1
+      paths = []
+      calls = []
+      top_index = locations.size - 1
+      locations.reverse.each_with_index do |loc, i|
+        node_id = node_id(loc)
+        if i == top_index
+          @samples[node_id][0] += 1
         end
+
+        path = [from, node_id]
+        if !paths.include?(path)
+          paths << path
+          @call_graph[path] += 1
+        end
+        if !calls.include?(node_id)
+          calls << node_id
+          @samples[node_id][1] += 1
+        end
+        from = node_id
       end
     end
 
@@ -63,100 +60,63 @@ class SamplingProf
     end
   end
 
-  class Threads
-    attr_accessor :max
-
-    def initialize
-      @hash = {}
-      @mutex = Mutex.new
-      @remain_sampling_time = 0
-      @max = 4
-    end
-
-    def sample_threads
-      @mutex.synchronize { @hash.keys.dup.shuffle[0..@max] }
-    end
-
-    def add(obj, time=Time.now)
-      @mutex.synchronize { @hash[obj] = time }
-    end
-
-    def sampling_runtime
-      now = Time.now
-      @mutex.synchronize do
-        ret, @remain_sampling_time = @remain_sampling_time, 0
-        @hash.keys.each do |k|
-          ret += now - @hash[k]
-          @hash[k] = now
-        end
-        ret
-      end
-    end
-
-    def delete(obj)
-      @mutex.synchronize do
-        start = @hash.delete(obj)
-        @remain_sampling_time += Time.now - start
-      end
-    end
-  end
-
-  attr_accessor :sampling_interval, :multithreading, :output_interval, :output_handler
+  attr_accessor :sampling_interval, :output_handler
 
   def internal_initialize
-    @running = false
-    @sampling_thread = nil
-    @threads = Threads.new
-  end
-
-  def max_sampling_threads=(max)
-    @threads.max = max
+    @samplings = {}
+    start_sampling_thread
   end
 
   def start
-    if @multithreading || !@running
-      @running = true
-      @threads.add(Thread.current)
-      @sampling_thread ||= Thread.start do
-        loop do
-          sampling = Sampling.new(@threads)
-          loop do
-            break unless @running
-            if @multithreading
-              break if output_interval < sampling.runtime
-            end
-            sampling.process
-            sleep @sampling_interval
-          end
-          if sampling.sampling_data?
-            @output_handler.call(sampling.result)
-          end
-          break unless @running
-        end
-      end
+    unless @samplings.has_key?(Thread.current)
+      @samplings[Thread.current] = Sampling.new
       true
     end
   end
 
   def stop
     if @running
-      if @multithreading
-        @threads.delete(Thread.current)
-      else
-        terminate
+      if sampling = @samplings.delete(Thread.current)
+        output(sampling)
+        true
       end
-      true
     end
   end
 
   def terminate
+    return false unless @running
     @running = false
     @sampling_thread.join
     @sampling_thread = nil
+    @samplings = {}
     true
   end
 
   def profiling?
-    !!@sampling_thread
+    !!@sampling_thread && @samplings.has_key?(Thread.current)
+  end
+
+  private
+  def start_sampling_thread
+    return if @running
+    @running = true
+    @sampling_thread ||= Thread.start do
+      loop do
+        @samplings.dup.each do |t, s|
+          s.process(t)
+        end
+        sleep @sampling_interval
+        break unless @running
+      end
+      @samplings.each do |sampling|
+        output(sampling)
+      end
+    end
+  end
+
+  def output(sampling)
+    if sampling.sampling_data?
+      @output_handler.call(sampling.result)
+    end
   end
 end

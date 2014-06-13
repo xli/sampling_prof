@@ -4,7 +4,10 @@ require 'fileutils'
 
 class SamplingProfTest < Test::Unit::TestCase
   def setup
-    @prof = SamplingProf.new(0.01)
+    @prof = nil
+  end
+  def teardown
+    @prof.terminate if @prof
   end
 
   def test_accept_default_callback_while_initializing
@@ -19,6 +22,7 @@ class SamplingProfTest < Test::Unit::TestCase
   end
 
   def test_start_profile
+    @prof = SamplingProf.new(0.01)
     assert !@prof.profiling?
     assert !@prof.stop
 
@@ -29,6 +33,10 @@ class SamplingProfTest < Test::Unit::TestCase
 
     assert @prof.stop
 
+    assert !@prof.stop
+    assert !@prof.profiling?
+
+    assert @prof.terminate
     assert !@prof.stop
     assert !@prof.profiling?
   ensure
@@ -49,6 +57,7 @@ class SamplingProfTest < Test::Unit::TestCase
   end
 
   def test_profile_and_output_text_result
+    @prof = SamplingProf.new(0.01)
     FileUtils.rm_rf(SamplingProf::DEFAULT_OUTPUT_FILE)
     @prof.profile do
       fib(35)
@@ -67,25 +76,10 @@ class SamplingProfTest < Test::Unit::TestCase
   def test_default_options
     @prof = SamplingProf.new
     assert_equal 0.1, @prof.sampling_interval
-    assert_equal false, @prof.multithreading
-    assert_equal nil, @prof.output_interval
-
-    @prof = SamplingProf.new(0.1, true)
-    assert_equal 0.1, @prof.sampling_interval
-    assert_equal true, @prof.multithreading
-    assert_equal 60, @prof.output_interval
-  end
-
-  def test_change_default_output_interval_to_nil
-    @prof = SamplingProf.new(0.1, true, nil)
-    assert_nil @prof.output_interval
-
-    @prof = SamplingProf.new(0.1, true)
-    @prof.output_interval = nil
-    assert_nil @prof.output_interval
   end
 
   def test_flat_report
+    @prof = SamplingProf.new(0.01)
     total, report = @prof.flat_report({0 => 'a', 1 => 'b'},
                                       [[0, 1, 5], [1, 4, 4]])
 
@@ -96,6 +90,7 @@ class SamplingProfTest < Test::Unit::TestCase
   end
 
   def test_flat_report_output
+    @prof = SamplingProf.new(0.01)
     @prof.output_file = File.dirname(__FILE__) + '/profile.txt'
     result = StringIO.open do |io|
       @prof.report(:flat, io)
@@ -123,10 +118,9 @@ TXT
     thread = OpenStruct.new(:backtrace_locations => [OpenStruct.new(:path => 'path1', :label => 'm1', :lineno => 1),
                                                      OpenStruct.new(:path => 'path2', :label => 'm2', :lineno => 2),
                                                      OpenStruct.new(:path => 'path3', :label => 'm3', :lineno => 3)])
-    threads = SamplingProf::Threads.new
-    threads.add(thread, Time.now - 1.23)
-    sampling = SamplingProf::Sampling.new(threads)
-    sampling.process
+    sampling = SamplingProf::Sampling.new
+    sleep 0.1
+    sampling.process(thread)
     data = sampling.result
     runtime, nodes, counts, call_graph = data.split("\n\n")
     expected = <<-DATA
@@ -142,7 +136,7 @@ path1:1:m1,2
 0,1,1
 1,2,1
 DATA
-    assert_equal 1230, runtime.to_i
+    assert runtime.to_i > 10
     assert_equal expected, [nodes, counts, call_graph].join("\n\n")
   end
 end

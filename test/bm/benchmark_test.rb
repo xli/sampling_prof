@@ -2,6 +2,10 @@ require 'test_helper'
 require 'benchmark'
 
 class BenchmarkTest < Test::Unit::TestCase
+  def teardown
+    @prof.terminate
+  end
+
   def test_profile_and_output_text_result
     @prof = SamplingProf.new(0.01)
     t = 40
@@ -20,7 +24,7 @@ class BenchmarkTest < Test::Unit::TestCase
   end
 
   def test_multithreading_profiling
-    @prof = SamplingProf.new(0.1, true, 1) do |data|
+    @prof = SamplingProf.new(0.1) do |data|
       # do nothing
     end
     t = 40

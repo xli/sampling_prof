@@ -6,26 +6,29 @@ import org.jruby.runtime.Block;
 import org.jruby.runtime.ThreadContext;
 import org.jruby.runtime.builtin.IRubyObject;
 
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+
 @JRubyClass(name = "SamplingProf")
 public class SamplingProf extends RubyObject {
 
     private long samplingInterval; // ms
     private Thread samplingThread;
-    private boolean multithreading = false;
 
-    private SamplingContexts threads = new SamplingContexts();
     private Block outputHandler;
-    private Long outputInterval; // ms
+    private Map<ThreadContext, Sampling> samplings = new ConcurrentHashMap<ThreadContext, Sampling>();
 
     public SamplingProf(Ruby runtime, RubyClass metaClass) {
         super(runtime, metaClass);
     }
 
-    @JRubyMethod(name = "max_sampling_threads=", required = 1)
-    public IRubyObject setMaxSamplingThreads(IRubyObject arg) {
-        threads.setMax(arg.convertToInteger().getBigIntegerValue().intValue());
-        return arg;
+    @JRubyMethod(name = "internal_initialize")
+    public IRubyObject internalInitialize() {
+        startSampling();
+        return getRuntime().getNil();
     }
+
     @JRubyMethod(name = "sampling_interval=", required = 1)
     public IRubyObject setSamplingInterval(IRubyObject arg) {
         this.samplingInterval = (long) (arg.convertToFloat().getDoubleValue() * 1000);
@@ -38,68 +41,36 @@ public class SamplingProf extends RubyObject {
         return arg;
     }
 
-    @JRubyMethod(name = "multithreading=", required = 1)
-    public IRubyObject setMultithreading(IRubyObject arg) {
-        this.multithreading = arg.isTrue();
-        return arg;
-    }
-
-    @JRubyMethod(name = "output_interval=", required = 1)
-    public IRubyObject setOutputInterval(IRubyObject arg) {
-        if (arg.isNil()) {
-            this.outputInterval = null;
-        } else {
-            this.outputInterval = (long) (arg.convertToFloat().getDoubleValue() * 1000);
-        }
-        return arg;
-    }
-
     @JRubyMethod(name = "sampling_interval")
     public IRubyObject getSamplingInterval() {
         return JavaUtil.convertJavaToRuby(getRuntime(), (double) this.samplingInterval / 1000);
     }
 
-    @JRubyMethod(name = "multithreading")
-    public IRubyObject getMultithreading() {
-        return JavaUtil.convertJavaToRuby(getRuntime(), this.multithreading);
-    }
-
-    @JRubyMethod(name = "output_interval")
-    public IRubyObject getOutputInterval() {
-        if (this.outputInterval == null) {
-            return getRuntime().getNil();
+    @JRubyMethod
+    public IRubyObject start() {
+        ThreadContext context = this.getRuntime().getCurrentContext();
+        if (samplings.containsKey(context)) {
+            return this.getRuntime().getFalse();
         }
-        return JavaUtil.convertJavaToRuby(getRuntime(), (double) this.outputInterval / 1000);
+        samplings.put(context, new Sampling(this.getRuntime()));
+        return this.getRuntime().getTrue();
     }
 
     @JRubyMethod
-    public IRubyObject start() {
-        if (this.multithreading || !running()) {
-            threads.add(this.getRuntime().getCurrentContext());
-            startSampling();
+    public IRubyObject stop() {
+        ThreadContext key = getRuntime().getCurrentContext();
+        Sampling sampling = samplings.remove(key);
+        if (sampling != null) {
+            output(sampling, this.getRuntime());
             return this.getRuntime().getTrue();
         } else {
             return this.getRuntime().getFalse();
         }
     }
 
-    @JRubyMethod
-    public IRubyObject stop() {
-        if (!this.multithreading) {
-            return terminate();
-        } else {
-            ThreadContext key = getRuntime().getCurrentContext();
-            if (threads.remove(key)) {
-                return this.getRuntime().getTrue();
-            } else {
-                return this.getRuntime().getFalse();
-            }
-        }
-    }
-
     @JRubyMethod(name = "profiling?")
     public IRubyObject isProfiling() {
-        return JavaUtil.convertJavaToRuby(this.getRuntime(), running());
+        return JavaUtil.convertJavaToRuby(this.getRuntime(), running() && samplings.containsKey(getRuntime().getCurrentContext()));
     }
 
     // this method is not thread-safe, should only be called once to terminate profiling
@@ -128,25 +99,29 @@ public class SamplingProf extends RubyObject {
         samplingThread = new Thread(new Runnable() {
             @Override
             public void run() {
-                boolean endless = multithreading;
-                do {
-                    Sampling sampling = new Sampling(ruby, threads);
-                    while (outputInterval == null || outputInterval > sampling.runtime()) {
-                        sampling.process();
-                        try {
-                            Thread.sleep(samplingInterval);
-                        } catch (InterruptedException e) {
-                            endless = false;
-                            break;
-                        }
+                while (true){
+                    for(Map.Entry<ThreadContext, Sampling> entry : samplings.entrySet()) {
+                        entry.getValue().process(entry.getKey());
                     }
-                    if (sampling.hasSamplingData()) {
-                        outputHandler.call(ruby.getCurrentContext(), sampling.result());
+                    try {
+                        Thread.sleep(samplingInterval);
+                    } catch (InterruptedException e) {
+                        break;
                     }
-                } while(endless);
+                }
+
+                for(Sampling sampling : samplings.values()) {
+                    output(sampling, ruby);
+                }
             }
         });
         samplingThread.start();
+    }
+
+    private void output(Sampling sampling, Ruby ruby) {
+        if (sampling.hasSamplingData()) {
+            outputHandler.call(ruby.getCurrentContext(), sampling.result());
+        }
     }
 
     private synchronized IRubyObject waitSamplingStop() {
