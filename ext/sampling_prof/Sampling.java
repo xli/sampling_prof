@@ -105,7 +105,7 @@ public class Sampling {
     }
 
     public void process() {
-        if (context.getThread() == null || (System.currentTimeMillis() - startAt) >= profilingThreshold) {
+        if (context.getThread() == null || (System.currentTimeMillis() - startAt) < profilingThreshold) {
             return;
         }
         StackTraceElement[] stackTrace = context.getThread().getNativeThread().getStackTrace();
