@@ -77,7 +77,7 @@ class SamplingProf
   def stop
     if @running
       if sampling = @samplings.delete(Thread.current)
-        output(sampling)
+        output(Thread.current, sampling)
         true
       end
     end
@@ -108,15 +108,18 @@ class SamplingProf
         sleep @sampling_interval
         break unless @running
       end
-      @samplings.each do |sampling|
-        output(sampling)
+      @samplings.each do |thread, sampling|
+        output(thread, sampling)
       end
     end
   end
 
-  def output(sampling)
+  def output(thread, sampling)
     if sampling.sampling_data?
-      @output_handler.call(sampling.result)
+      o = @output_handler
+      thread.instance_eval do
+        o.call(sampling.result)
+      end
     end
   end
 end

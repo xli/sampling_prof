@@ -6,7 +6,6 @@ import org.jruby.runtime.Block;
 import org.jruby.runtime.ThreadContext;
 import org.jruby.runtime.builtin.IRubyObject;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -61,7 +60,7 @@ public class SamplingProf extends RubyObject {
         ThreadContext key = getRuntime().getCurrentContext();
         Sampling sampling = samplings.remove(key);
         if (sampling != null) {
-            output(sampling, this.getRuntime());
+            output(key, sampling);
             return this.getRuntime().getTrue();
         } else {
             return this.getRuntime().getFalse();
@@ -110,17 +109,17 @@ public class SamplingProf extends RubyObject {
                     }
                 }
 
-                for(Sampling sampling : samplings.values()) {
-                    output(sampling, ruby);
+                for(Map.Entry<ThreadContext, Sampling> entry : samplings.entrySet()) {
+                    output(entry.getKey(), entry.getValue());
                 }
             }
         });
         samplingThread.start();
     }
 
-    private void output(Sampling sampling, Ruby ruby) {
+    private void output(ThreadContext context, Sampling sampling) {
         if (sampling.hasSamplingData()) {
-            outputHandler.call(ruby.getCurrentContext(), sampling.result());
+            outputHandler.call(context, sampling.result());
         }
     }
 

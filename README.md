@@ -25,6 +25,8 @@ SamplingProf class initializer takes 1 argument:
 
 SamplingProf class also takes block as another option to overwite default output handler, the default output handler will write output data to a local file defined by output_file attribute, which is default to SamplingProf::DEFAULT_OUTPUT_FILE
 
+Notice, the output handler should be called in the context of the thread start profiling. So you can pass parameters to the output handler by Thread local variables.
+
 When a SamplingProf is initialized, a thread will be started to handle sampling process.
 So you need call SamplingProf#terminate to shutdown the sampling thread after everything is done.
 
