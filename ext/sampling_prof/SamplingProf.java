@@ -13,6 +13,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class SamplingProf extends RubyObject {
 
     private long samplingInterval; // ms
+    private long profilingThreshold = 0; // ms
     private Thread samplingThread;
 
     private Block outputHandler;
@@ -45,6 +46,17 @@ public class SamplingProf extends RubyObject {
         return JavaUtil.convertJavaToRuby(getRuntime(), (double) this.samplingInterval / 1000);
     }
 
+    @JRubyMethod(name = "profiling_threshold")
+    public IRubyObject getProfilingThreshold() {
+        return JavaUtil.convertJavaToRuby(getRuntime(), (double) this.profilingThreshold / 1000);
+    }
+
+    @JRubyMethod(name = "profiling_threshold=", required = 1)
+    public IRubyObject getProfilingThreshold(IRubyObject arg) {
+        this.profilingThreshold = (long) (arg.convertToInteger().getDoubleValue()) * 1000;
+        return arg;
+    }
+
     @JRubyMethod
     public IRubyObject start() {
         ThreadContext context = this.getRuntime().getCurrentContext();
@@ -60,7 +72,9 @@ public class SamplingProf extends RubyObject {
         ThreadContext key = getRuntime().getCurrentContext();
         Sampling sampling = samplings.remove(key);
         if (sampling != null) {
-            output(key, sampling);
+            if (sampling.hasSamplingData()) {
+                outputHandler.call(key, sampling.result());
+            }
             return this.getRuntime().getTrue();
         } else {
             return this.getRuntime().getFalse();
@@ -100,7 +114,9 @@ public class SamplingProf extends RubyObject {
             public void run() {
                 while (true){
                     for(Map.Entry<ThreadContext, Sampling> entry : samplings.entrySet()) {
-                        entry.getValue().process(entry.getKey());
+                        if (entry.getValue().runtime() >= profilingThreshold) {
+                            entry.getValue().process(entry.getKey());
+                        }
                     }
                     try {
                         Thread.sleep(samplingInterval);
@@ -108,19 +124,9 @@ public class SamplingProf extends RubyObject {
                         break;
                     }
                 }
-
-                for(Map.Entry<ThreadContext, Sampling> entry : samplings.entrySet()) {
-                    output(entry.getKey(), entry.getValue());
-                }
             }
         });
         samplingThread.start();
-    }
-
-    private void output(ThreadContext context, Sampling sampling) {
-        if (sampling.hasSamplingData()) {
-            outputHandler.call(context, sampling.result());
-        }
     }
 
     private synchronized IRubyObject waitSamplingStop() {

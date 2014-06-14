@@ -60,7 +60,7 @@ class SamplingProf
     end
   end
 
-  attr_accessor :sampling_interval, :output_handler
+  attr_accessor :sampling_interval, :output_handler, :profiling_threshold
 
   def internal_initialize
     @samplings = {}
@@ -77,7 +77,9 @@ class SamplingProf
   def stop
     if @running
       if sampling = @samplings.delete(Thread.current)
-        output(Thread.current, sampling)
+        if sampling.sampling_data?
+          @output_handler.call(sampling.result)
+        end
         true
       end
     end
@@ -103,22 +105,12 @@ class SamplingProf
     @sampling_thread ||= Thread.start do
       loop do
         @samplings.dup.each do |t, s|
-          s.process(t)
+          if s.runtime >= @profiling_threshold
+            s.process(t)
+          end
         end
         sleep @sampling_interval
         break unless @running
-      end
-      @samplings.each do |thread, sampling|
-        output(thread, sampling)
-      end
-    end
-  end
-
-  def output(thread, sampling)
-    if sampling.sampling_data?
-      o = @output_handler
-      thread.instance_eval do
-        o.call(sampling.result)
       end
     end
   end
