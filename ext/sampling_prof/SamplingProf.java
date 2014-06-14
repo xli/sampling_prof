@@ -63,7 +63,7 @@ public class SamplingProf extends RubyObject {
         if (samplings.containsKey(context)) {
             return this.getRuntime().getFalse();
         }
-        samplings.put(context, new Sampling(this.getRuntime()));
+        samplings.put(context, new Sampling(this.getRuntime(), context, this.outputHandler, this.profilingThreshold));
         return this.getRuntime().getTrue();
     }
 
@@ -72,9 +72,7 @@ public class SamplingProf extends RubyObject {
         ThreadContext key = getRuntime().getCurrentContext();
         Sampling sampling = samplings.remove(key);
         if (sampling != null) {
-            if (sampling.hasSamplingData()) {
-                outputHandler.call(key, sampling.result());
-            }
+            sampling.output();
             return this.getRuntime().getTrue();
         } else {
             return this.getRuntime().getFalse();
@@ -108,15 +106,12 @@ public class SamplingProf extends RubyObject {
         if (outputHandler == null) {
             throw getRuntime().newArgumentError("Please setup output handler before start profiling");
         }
-        final Ruby ruby = this.getRuntime();
         samplingThread = new Thread(new Runnable() {
             @Override
             public void run() {
                 while (true){
-                    for(Map.Entry<ThreadContext, Sampling> entry : samplings.entrySet()) {
-                        if (entry.getValue().runtime() >= profilingThreshold) {
-                            entry.getValue().process(entry.getKey());
-                        }
+                    for(Sampling sampling : samplings.values()) {
+                        sampling.process();
                     }
                     try {
                         Thread.sleep(samplingInterval);

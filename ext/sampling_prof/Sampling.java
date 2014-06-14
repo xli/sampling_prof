@@ -1,5 +1,6 @@
 import org.jruby.Ruby;
 import org.jruby.javasupport.JavaUtil;
+import org.jruby.runtime.Block;
 import org.jruby.runtime.ThreadContext;
 import org.jruby.runtime.builtin.IRubyObject;
 
@@ -7,10 +8,7 @@ import org.jruby.runtime.backtrace.BacktraceData;
 import org.jruby.runtime.backtrace.RubyStackTraceElement;
 import org.jruby.runtime.backtrace.TraceType;
 
-import java.io.File;
 import java.util.*;
-import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Created by Xiao Li on 3/21/14.
@@ -59,27 +57,25 @@ public class Sampling {
     private static final String NODE_DATA_SPLITTER = ":";
 
     private final Ruby ruby;
+    private final ThreadContext context;
+    private final Block outputHandler;
+    private final long profilingThreshold;
     private final Map<String, Integer> nodes = new HashMap<String, Integer>();
     private final Map<Path, Integer> callGraph = new HashMap<Path, Integer>();
     private final Map<Integer, Count> counts = new HashMap<Integer, Count>();
     private final long startAt;
 
-    public Sampling(Ruby ruby) {
+    public Sampling(Ruby ruby, ThreadContext context, Block outputHandler, long profilingThreshold) {
         this.ruby = ruby;
+        this.context = context;
+        this.outputHandler = outputHandler;
+        this.profilingThreshold = profilingThreshold;
         this.startAt = System.currentTimeMillis();
-    }
-
-    public long runtime() {
-        return System.currentTimeMillis() - startAt;
-    }
-
-    public boolean hasSamplingData() {
-        return !nodes.isEmpty();
     }
 
     public IRubyObject result() {
         StringBuffer buffer = new StringBuffer();
-        buffer.append(runtime()).append("\n");
+        buffer.append(System.currentTimeMillis() - startAt).append("\n");
         buffer.append("\n");
         for (Map.Entry<String, Integer> entry1 : nodes.entrySet()) {
             buffer.append(entry1.getKey()).append(",").append(entry1.getValue());
@@ -101,8 +97,15 @@ public class Sampling {
         return JavaUtil.convertJavaToRuby(ruby, buffer.toString());
     }
 
-    public void process(ThreadContext context) {
-        if (context.getThread() == null) {
+    public void output() {
+        if (nodes.isEmpty() || context.getThread() == null) {
+            return;
+        }
+        outputHandler.call(context, result());
+    }
+
+    public void process() {
+        if (context.getThread() == null || (System.currentTimeMillis() - startAt) >= profilingThreshold) {
             return;
         }
         StackTraceElement[] stackTrace = context.getThread().getNativeThread().getStackTrace();
