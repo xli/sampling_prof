@@ -76,18 +76,6 @@ class SamplingProfTest < Test::Unit::TestCase
   def test_default_options
     @prof = SamplingProf.new
     assert_equal 0.1, @prof.sampling_interval
-    assert_equal 0, @prof.profiling_threshold
-  end
-
-  def test_should_not_start_profiling_until_runtime_is_over_profiling_threshold
-    @data = []
-    @prof = SamplingProf.new(0.1, 0.40) do |data|
-      @data << data
-    end
-    @prof.profile do
-      sleep 0.5
-    end
-    assert_equal 1, @data.size
   end
 
   def test_output_handler_should_be_called_in_same_thread_context_with_profile_method_called

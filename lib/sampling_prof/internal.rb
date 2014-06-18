@@ -60,7 +60,7 @@ class SamplingProf
     end
   end
 
-  attr_accessor :sampling_interval, :output_handler, :profiling_threshold
+  attr_accessor :sampling_interval, :output_handler
 
   def internal_initialize
     @samplings = {}
@@ -105,9 +105,7 @@ class SamplingProf
     @sampling_thread ||= Thread.start do
       loop do
         @samplings.dup.each do |t, s|
-          if s.runtime >= @profiling_threshold
-            s.process(t)
-          end
+          s.process(t)
         end
         sleep @sampling_interval
         break unless @running

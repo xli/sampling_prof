@@ -59,22 +59,20 @@ public class Sampling {
     private final Ruby ruby;
     private final ThreadContext context;
     private final Block outputHandler;
-    private final long profilingThreshold;
     private final Map<String, Integer> nodes = new HashMap<String, Integer>();
     private final Map<Path, Integer> callGraph = new HashMap<Path, Integer>();
     private final Map<Integer, Count> counts = new HashMap<Integer, Count>();
     private final long startAt;
 
-    public Sampling(Ruby ruby, ThreadContext context, Block outputHandler, long profilingThreshold) {
+    public Sampling(Ruby ruby, ThreadContext context, Block outputHandler) {
         this.ruby = ruby;
         this.context = context;
         this.outputHandler = outputHandler;
-        this.profilingThreshold = profilingThreshold;
         this.startAt = System.currentTimeMillis();
     }
 
     public IRubyObject result() {
-        StringBuffer buffer = new StringBuffer();
+        StringBuilder buffer = new StringBuilder();
         buffer.append(System.currentTimeMillis() - startAt).append("\n");
         buffer.append("\n");
         for (Map.Entry<String, Integer> entry1 : nodes.entrySet()) {
@@ -105,7 +103,7 @@ public class Sampling {
     }
 
     public void process() {
-        if (context.getThread() == null || (System.currentTimeMillis() - startAt) < profilingThreshold) {
+        if (context.getThread() == null) {
             return;
         }
         StackTraceElement[] stackTrace = context.getThread().getNativeThread().getStackTrace();
@@ -162,11 +160,7 @@ public class Sampling {
     }
 
     private String node(RubyStackTraceElement backtrace) {
-        StringBuffer buffer = new StringBuffer();
-        buffer.append(backtrace.getFileName()).append(NODE_DATA_SPLITTER).
-                append(backtrace.getLineNumber()).append(NODE_DATA_SPLITTER).
-                append(backtrace.getMethodName());
-        return buffer.toString();
+        return backtrace.getFileName() + NODE_DATA_SPLITTER + backtrace.getLineNumber() + NODE_DATA_SPLITTER + backtrace.getMethodName();
 
     }
 

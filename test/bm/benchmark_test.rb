@@ -11,7 +11,7 @@ class BenchmarkTest < Test::Unit::TestCase
       # do nothing
     end
     t = 40
-    tc = 16
+    tc = 4
     puts "t: #{t}, thread count: #{tc}"
     Benchmark.bm do |x|
       5.times do

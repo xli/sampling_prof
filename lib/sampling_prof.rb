@@ -11,11 +11,10 @@ class SamplingProf
 
   # options:
   #   sampling_interval: default to 0.1 second
-  #   profiling_threshold: default to 0 second
+  #   max: max sampling threads, default to 8 threads
   #   &output_handler: default to write into output_file
   def initialize(*args, &output_handler)
     self.sampling_interval = args[0] || 0.1
-    self.profiling_threshold = args[1] || 0
     self.output_handler = block_given? ? output_handler : default_output_handler
     internal_initialize if respond_to?(:internal_initialize)
   end

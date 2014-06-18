@@ -13,7 +13,6 @@ import java.util.concurrent.ConcurrentHashMap;
 public class SamplingProf extends RubyObject {
 
     private long samplingInterval; // ms
-    private long profilingThreshold = 0; // ms
     private Thread samplingThread;
 
     private Block outputHandler;
@@ -46,24 +45,13 @@ public class SamplingProf extends RubyObject {
         return JavaUtil.convertJavaToRuby(getRuntime(), (double) this.samplingInterval / 1000);
     }
 
-    @JRubyMethod(name = "profiling_threshold")
-    public IRubyObject getProfilingThreshold() {
-        return JavaUtil.convertJavaToRuby(getRuntime(), (double) this.profilingThreshold / 1000);
-    }
-
-    @JRubyMethod(name = "profiling_threshold=", required = 1)
-    public IRubyObject getProfilingThreshold(IRubyObject arg) {
-        this.profilingThreshold = (long) (arg.convertToInteger().getDoubleValue()) * 1000;
-        return arg;
-    }
-
     @JRubyMethod
     public IRubyObject start() {
         ThreadContext context = this.getRuntime().getCurrentContext();
         if (samplings.containsKey(context)) {
             return this.getRuntime().getFalse();
         }
-        samplings.put(context, new Sampling(this.getRuntime(), context, this.outputHandler, this.profilingThreshold));
+        samplings.put(context, new Sampling(this.getRuntime(), context, this.outputHandler));
         return this.getRuntime().getTrue();
     }
 
