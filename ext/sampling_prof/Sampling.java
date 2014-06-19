@@ -9,6 +9,8 @@ import org.jruby.runtime.backtrace.RubyStackTraceElement;
 import org.jruby.runtime.backtrace.TraceType;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Created by Xiao Li on 3/21/14.
@@ -63,12 +65,18 @@ public class Sampling {
     private final Map<Path, Integer> callGraph = new HashMap<Path, Integer>();
     private final Map<Integer, Count> counts = new HashMap<Integer, Count>();
     private final long startAt;
+    private final AtomicBoolean stop = new AtomicBoolean(false);
+
 
     public Sampling(Ruby ruby, ThreadContext context, Block outputHandler) {
         this.ruby = ruby;
         this.context = context;
         this.outputHandler = outputHandler;
         this.startAt = System.currentTimeMillis();
+    }
+
+    public ThreadContext getContext() {
+        return this.context;
     }
 
     public IRubyObject result() {
@@ -96,10 +104,18 @@ public class Sampling {
     }
 
     public void output() {
-        if (nodes.isEmpty() || context.getThread() == null) {
+        if (nodes.isEmpty() || ruby.getCurrentContext().getThread() == null) {
             return;
         }
-        outputHandler.call(context, result());
+        outputHandler.call(ruby.getCurrentContext(), result());
+    }
+
+    public void stop() {
+        this.stop.set(true);
+    }
+
+    public boolean isStop() {
+        return stop.get();
     }
 
     public void process() {
@@ -162,9 +178,5 @@ public class Sampling {
     private String node(RubyStackTraceElement backtrace) {
         return backtrace.getFileName() + NODE_DATA_SPLITTER + backtrace.getLineNumber() + NODE_DATA_SPLITTER + backtrace.getMethodName();
 
-    }
-
-    private void log(Object obj) {
-        System.out.println(obj);
     }
 }

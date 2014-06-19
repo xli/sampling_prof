@@ -1,44 +1,58 @@
 require 'test_helper'
-require 'stringio'
 require 'fileutils'
 
 class SamplingProfTest < Test::Unit::TestCase
   def setup
     @prof = nil
   end
+
   def teardown
     @prof.terminate if @prof
   end
 
-  def test_accept_default_callback_while_initializing
-    @data = []
-    @prof = SamplingProf.new(0.01) do |data|
-      @data << data
-    end
-    @prof.profile do
-      sleep 0.02
-    end
-    assert @data.size > 0
+  def test_default_options
+    @prof = SamplingProf.new
+    assert_equal 0.1, @prof.sampling_interval
   end
 
-  def test_start_profile
+  def test_start_and_stop_profiling
     @prof = SamplingProf.new(0.01)
     assert !@prof.profiling?
     assert !@prof.stop
 
-    assert @prof.start
+    assert @prof.start(lambda{})
 
-    assert !@prof.start
+    assert !@prof.start(lambda{})
     assert @prof.profiling?
 
     assert @prof.stop
 
     assert !@prof.stop
+    assert @prof.profiling?
+    sleep 0.02
     assert !@prof.profiling?
 
     assert @prof.terminate
     assert !@prof.stop
     assert !@prof.profiling?
+  ensure
+    FileUtils.rm_rf @prof.output_file
+  end
+
+  def test_profile_and_output_text_result
+    @prof = SamplingProf.new(0.01)
+    FileUtils.rm_rf(SamplingProf::DEFAULT_OUTPUT_FILE)
+    @prof.profile do
+      fib(35)
+    end
+    sleep 0.02
+    assert File.exist?(SamplingProf::DEFAULT_OUTPUT_FILE)
+    runtime, nodes, counts, call_graph = File.read(SamplingProf::DEFAULT_OUTPUT_FILE).split("\n\n")
+
+    assert runtime.to_f > 100 # unit is ms
+    assert nodes.split("\n").size > 1
+    assert counts.split("\n").size > 1
+    assert call_graph.split("\n").size > 1
   ensure
     FileUtils.rm_rf @prof.output_file
   end
@@ -51,106 +65,46 @@ class SamplingProfTest < Test::Unit::TestCase
     @prof.profile do
       sleep 0.02
     end
-
+    sleep 0.02
     assert @data
     assert !File.exist?(SamplingProf::DEFAULT_OUTPUT_FILE)
   end
 
-  def test_profile_and_output_text_result
-    @prof = SamplingProf.new(0.01)
-    FileUtils.rm_rf(SamplingProf::DEFAULT_OUTPUT_FILE)
-    @prof.profile do
-      fib(35)
-    end
-    assert File.exist?(SamplingProf::DEFAULT_OUTPUT_FILE)
-    runtime, nodes, counts, call_graph = File.read(SamplingProf::DEFAULT_OUTPUT_FILE).split("\n\n")
-
-    assert runtime.to_f > 100 # unit is ms
-    assert nodes.split("\n").size > 1
-    assert counts.split("\n").size > 1
-    assert call_graph.split("\n").size > 1
-  ensure
-    FileUtils.rm_rf @prof.output_file
-  end
-
-  def test_default_options
-    @prof = SamplingProf.new
-    assert_equal 0.1, @prof.sampling_interval
-  end
-
-  def test_output_handler_should_be_called_in_same_thread_context_with_profile_method_called
+  def test_output_handler_should_be_called_even_after_profiling_thread_is_dead
     @threads = []
-    @prof = SamplingProf.new(0.1, 0.40) do |data|
-      @threads << Thread.current
+    @prof = SamplingProf.new(0.01) do |data|
+      @threads << Thread.current.status
     end
     t = Thread.start do
       @prof.profile do
-        sleep 0.5
+        sleep 0.02
       end
     end
     t.join
-    assert_equal t, @threads[0]
+    sleep 0.02
+    assert_equal 'run', @threads[0]
   end
 
-  def test_flat_report
-    @prof = SamplingProf.new(0.01)
-    total, report = @prof.flat_report({0 => 'a', 1 => 'b'},
-                                      [[0, 1, 5], [1, 4, 4]])
-
-    assert_equal 5, total
-    expected = [[4, "80.00%", 4, "80.00%", "b"],
-                [1, "20.00%", 5, "100.00%", "a"]]
-    assert_equal expected, report
-  end
-
-  def test_flat_report_output
-    @prof = SamplingProf.new(0.01)
-    @prof.output_file = File.dirname(__FILE__) + '/profile.txt'
-    result = StringIO.open do |io|
-      @prof.report(:flat, io)
-      io.string
+  def test_profile_with_temp_output_handler
+    @data = []
+    @prof = SamplingProf.new(0.01) do |data|
+      # do nothing
     end
-
-    expected_output = <<-TXT
-runtime: 1.567 secs
-total samples: 15
-self	%	total	%	name
-6	40.00%	15	100.00%	test/sampling_prof_test.rb:73:fib
-3	20.00%	3	20.00%	test/sampling_prof_test.rb:69:fib
-3	20.00%	4	26.67%	test/sampling_prof_test.rb:68:fib
-2	13.33%	2	13.33%	test/sampling_prof_test.rb:73:-
-1	6.67%	1	6.67%	test/sampling_prof_test.rb:68:==
-TXT
-    assert_equal expected_output, result
+    @prof.profile(lambda {|data| @data << data}) do
+      sleep 0.02
+    end
+    sleep 0.02
+    assert_equal 1, @data.size
   end
 
-  def test_snapshot
-    unless defined?(SamplingProf::Sampling)
-      print "S"
-      return
+  def test_should_not_yield_output_handler_when_there_is_no_data_collected
+    @data = []
+    @prof = SamplingProf.new(0.1) do |data|
+      @data << data
     end
-    thread = OpenStruct.new(:backtrace_locations => [OpenStruct.new(:path => 'path1', :label => 'm1', :lineno => 1),
-                                                     OpenStruct.new(:path => 'path2', :label => 'm2', :lineno => 2),
-                                                     OpenStruct.new(:path => 'path3', :label => 'm3', :lineno => 3)])
-    sampling = SamplingProf::Sampling.new
-    sleep 0.1
-    sampling.process(thread)
-    data = sampling.result
-    runtime, nodes, counts, call_graph = data.split("\n\n")
-    expected = <<-DATA
-path3:3:m3,0
-path2:2:m2,1
-path1:1:m1,2
-
-0,0,1
-1,0,1
-2,1,1
-
--1,0,1
-0,1,1
-1,2,1
-DATA
-    assert runtime.to_i > 10
-    assert_equal expected, [nodes, counts, call_graph].join("\n\n")
+    @prof.profile {}
+    sleep 0.2
+    @prof.terminate
+    assert_equal [], @data
   end
 end

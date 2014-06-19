@@ -9,34 +9,21 @@ import org.jruby.runtime.builtin.IRubyObject;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-@JRubyClass(name = "SamplingProf")
-public class SamplingProf extends RubyObject {
+@JRubyClass(name = "SamplingProfiler")
+public class SamplingProfiler extends RubyObject {
 
     private long samplingInterval; // ms
     private Thread samplingThread;
-
-    private Block outputHandler;
     private Map<ThreadContext, Sampling> samplings = new ConcurrentHashMap<ThreadContext, Sampling>();
 
-    public SamplingProf(Ruby runtime, RubyClass metaClass) {
+    public SamplingProfiler(Ruby runtime, RubyClass metaClass) {
         super(runtime, metaClass);
     }
 
-    @JRubyMethod(name = "internal_initialize")
-    public IRubyObject internalInitialize() {
-        startSampling();
-        return getRuntime().getNil();
-    }
-
-    @JRubyMethod(name = "sampling_interval=", required = 1)
-    public IRubyObject setSamplingInterval(IRubyObject arg) {
+    @JRubyMethod(name = "initialize", required = 1)
+    public IRubyObject init(IRubyObject arg) {
         this.samplingInterval = (long) (arg.convertToFloat().getDoubleValue() * 1000);
-        return arg;
-    }
-
-    @JRubyMethod(name = "output_handler=", required = 1)
-    public IRubyObject setOutputHandler(IRubyObject arg) {
-        this.outputHandler = ((RubyProc) arg).getBlock();
+        startSampling();
         return arg;
     }
 
@@ -45,22 +32,28 @@ public class SamplingProf extends RubyObject {
         return JavaUtil.convertJavaToRuby(getRuntime(), (double) this.samplingInterval / 1000);
     }
 
-    @JRubyMethod
-    public IRubyObject start() {
+    @JRubyMethod(name = "start", required = 1)
+    public IRubyObject start(IRubyObject arg) {
+        if (arg == null || arg.isNil()) {
+            throw getRuntime().newArgumentError("Please setup output handler before start profiling");
+        }
+
+        Block handler = ((RubyProc) arg).getBlock();
+
         ThreadContext context = this.getRuntime().getCurrentContext();
         if (samplings.containsKey(context)) {
             return this.getRuntime().getFalse();
         }
-        samplings.put(context, new Sampling(this.getRuntime(), context, this.outputHandler));
+        samplings.put(context, new Sampling(this.getRuntime(), context, handler));
         return this.getRuntime().getTrue();
     }
 
     @JRubyMethod
     public IRubyObject stop() {
         ThreadContext key = getRuntime().getCurrentContext();
-        Sampling sampling = samplings.remove(key);
-        if (sampling != null) {
-            sampling.output();
+        Sampling sampling = samplings.get(key);
+        if (sampling != null && !sampling.isStop()) {
+            sampling.stop();
             return this.getRuntime().getTrue();
         } else {
             return this.getRuntime().getFalse();
@@ -91,21 +84,26 @@ public class SamplingProf extends RubyObject {
         if (running()) {
             return;
         }
-        if (outputHandler == null) {
-            throw getRuntime().newArgumentError("Please setup output handler before start profiling");
-        }
         samplingThread = new Thread(new Runnable() {
             @Override
             public void run() {
                 while (true){
                     for(Sampling sampling : samplings.values()) {
-                        sampling.process();
+                        if (sampling.isStop()) {
+                            samplings.remove(sampling.getContext());
+                            sampling.output();
+                        } else {
+                            sampling.process();
+                        }
                     }
                     try {
                         Thread.sleep(samplingInterval);
                     } catch (InterruptedException e) {
                         break;
                     }
+                }
+                for(Sampling sampling : samplings.values()) {
+                    sampling.output();
                 }
             }
         });

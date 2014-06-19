@@ -1,5 +1,6 @@
 if RUBY_PLATFORM =~ /java/
   require 'sampling_prof.jar'
+  require 'sampling_profiler'
 else
   require 'sampling_prof/internal'
 end
@@ -11,23 +12,41 @@ class SamplingProf
 
   # options:
   #   sampling_interval: default to 0.1 second
-  #   max: max sampling threads, default to 8 threads
   #   &output_handler: default to write into output_file
-  def initialize(*args, &output_handler)
-    self.sampling_interval = args[0] || 0.1
-    self.output_handler = block_given? ? output_handler : default_output_handler
-    internal_initialize if respond_to?(:internal_initialize)
+  def initialize(sampling_interval=0.1, &output_handler)
+    @profiler = SamplingProfiler.new(sampling_interval)
+    @output_handler = block_given? ? output_handler : default_output_handler
+  end
+
+  def start(handler=nil)
+    @profiler.start(handler || @output_handler)
+  end
+
+  def stop
+    @profiler.stop
+  end
+
+  def profiling?
+    @profiler.profiling?
+  end
+
+  def sampling_interval
+    @profiler.sampling_interval
+  end
+
+  def terminate
+    @profiler.terminate
   end
 
   def output_file
     @output_file ||= DEFAULT_OUTPUT_FILE
   end
 
-  def profile(&block)
-    start
-    yield if block_given?
+  def profile(handler=nil, &block)
+    start(handler)
+    yield
   ensure
-    stop if block_given?
+    stop
   end
 
   def default_output_handler

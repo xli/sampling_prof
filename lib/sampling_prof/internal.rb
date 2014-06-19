@@ -1,13 +1,22 @@
-require 'set'
 require 'thread'
 
-class SamplingProf
+class SamplingProfiler
   class Sampling
-    def initialize
+    def initialize(output_handler)
       @samples = Hash.new{|h,k| h[k] = [0, 0] }
       @call_graph = Hash.new{|h,k| h[k] = 0}
       @nodes = {}
       @start_at = Time.now
+      @output_handler = output_handler
+      @stop = false
+    end
+
+    def stop
+      @stop = true
+    end
+
+    def stopped?
+      @stop
     end
 
     def runtime
@@ -16,6 +25,12 @@ class SamplingProf
 
     def sampling_data?
       !@nodes.empty?
+    end
+
+    def output
+      if sampling_data?
+        @output_handler.call(result)
+      end
     end
 
     def result
@@ -60,27 +75,29 @@ class SamplingProf
     end
   end
 
-  attr_accessor :sampling_interval, :output_handler
+  attr_accessor :sampling_interval
 
-  def internal_initialize
+  def initialize(sampling_interval)
+    @sampling_interval = sampling_interval
     @samplings = {}
+    @running = false
     start_sampling_thread
   end
 
-  def start
+  def start(output_handler)
     unless @samplings.has_key?(Thread.current)
-      @samplings[Thread.current] = Sampling.new
+      @samplings[Thread.current] = Sampling.new(output_handler)
       true
     end
   end
 
   def stop
     if @running
-      if sampling = @samplings.delete(Thread.current)
-        if sampling.sampling_data?
-          @output_handler.call(sampling.result)
+      if sampling = @samplings[Thread.current]
+        unless sampling.stopped?
+          sampling.stop
+          true
         end
-        true
       end
     end
   end
@@ -105,10 +122,18 @@ class SamplingProf
     @sampling_thread ||= Thread.start do
       loop do
         @samplings.dup.each do |t, s|
-          s.process(t)
+          if s.stopped?
+            s.output
+            @samplings.delete(t)
+          else
+            s.process(t)
+          end
         end
         sleep @sampling_interval
         break unless @running
+      end
+      @samplings.each do |t, s|
+        s.output
       end
     end
   end

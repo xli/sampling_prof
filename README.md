@@ -25,23 +25,15 @@ SamplingProf class initializer takes 1 argument:
 
 SamplingProf class also takes block as another option to overwite default output handler, the default output handler will write output data to a local file defined by output_file attribute, which is default to SamplingProf::DEFAULT_OUTPUT_FILE
 
-Notice, the output handler should be called in the context of the thread start profiling. So you can pass parameters to the output handler by Thread local variables.
+Notice, for the performance and thread-safe concerns, the output handler will not be called in the context of the thread start profiling.
 
 When a SamplingProf is initialized, a thread will be started to handle sampling process.
-So you need call SamplingProf#terminate to shutdown the sampling thread after everything is done.
+You need call SamplingProf#terminate to shutdown the sampling thread after everything is done.
 
 ### Sampling interval
 
 This is an interval to control how frequent SamplingProf should take sample of target thread stacktrace.
 The default value is 0.1 seconds.
-
-### Multithreading
-
-When running SamplingProf in multithreading environment (e.g. Rails multithreading production environment), it can profile all requests processing at same time cross threads.
-
-For performance concerns, you should controll how many number of threads' sample while profiling.
-
-Randomly select some threads for profiling, the result is still a statistical approximation.
 
 Output data format
 ---------------
