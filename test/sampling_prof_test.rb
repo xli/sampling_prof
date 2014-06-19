@@ -102,6 +102,7 @@ class SamplingProfTest < Test::Unit::TestCase
     @prof = SamplingProf.new(0.1) do |data|
       @data << data
     end
+    sleep 0.01
     @prof.profile {}
     sleep 0.2
     @prof.terminate
