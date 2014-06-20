@@ -9,8 +9,7 @@ import org.jruby.runtime.backtrace.RubyStackTraceElement;
 import org.jruby.runtime.backtrace.TraceType;
 
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Created by Xiao Li on 3/21/14.
@@ -65,7 +64,7 @@ public class Sampling {
     private final Map<Path, Integer> callGraph = new HashMap<Path, Integer>();
     private final Map<Integer, Count> counts = new HashMap<Integer, Count>();
     private final long startAt;
-    private final AtomicBoolean stop = new AtomicBoolean(false);
+    private final AtomicLong endAt = new AtomicLong(-1);
 
 
     public Sampling(Ruby ruby, ThreadContext context, Block outputHandler) {
@@ -81,7 +80,7 @@ public class Sampling {
 
     public IRubyObject result() {
         StringBuilder buffer = new StringBuilder();
-        buffer.append(System.currentTimeMillis() - startAt).append("\n");
+        buffer.append(endAt.get() - startAt).append("\n");
         buffer.append("\n");
         for (Map.Entry<String, Integer> entry1 : nodes.entrySet()) {
             buffer.append(entry1.getKey()).append(",").append(entry1.getValue());
@@ -111,11 +110,11 @@ public class Sampling {
     }
 
     public void stop() {
-        this.stop.set(true);
+        this.endAt.set(System.currentTimeMillis());
     }
 
     public boolean isStop() {
-        return stop.get();
+        return this.endAt.get() > 0;
     }
 
     public void process() {
