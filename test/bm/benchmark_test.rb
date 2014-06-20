@@ -7,9 +7,7 @@ class BenchmarkTest < Test::Unit::TestCase
   end
 
   def test_benchmark_profiling
-    @prof = SamplingProf.new(0.1) do |data|
-      # do nothing
-    end
+    @prof = SamplingProf.new(0.1) {|data|}
     t = 40
     tc = 16
     puts "t: #{t}, thread count: #{tc}"
@@ -18,7 +16,7 @@ class BenchmarkTest < Test::Unit::TestCase
         x.report('P') do
           threads = (1..tc).map do |i|
             Thread.start do
-              @prof.profile { my_fib(t) }
+              @prof.profile(lambda {|data|}) { my_fib(t) }
               Thread.start { @prof.profile { my_fib(t) } }.join
             end
           end
