@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    sampling_prof (0.4.5)
+    sampling_prof (0.4.6)
 
 GEM
   remote: https://rubygems.org/
