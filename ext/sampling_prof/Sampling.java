@@ -1,4 +1,5 @@
 import org.jruby.Ruby;
+import org.jruby.RubyThread;
 import org.jruby.javasupport.JavaUtil;
 import org.jruby.runtime.Block;
 import org.jruby.runtime.ThreadContext;
@@ -99,10 +100,18 @@ public class Sampling {
     }
 
     public void process() {
-        if (context.getThread() == null) {
+        RubyThread thread = context.getThread();
+        if (thread == null || !thread.isAlive()) {
             return;
         }
-        StackTraceElement[] stackTrace = context.getThread().getNativeThread().getStackTrace();
+        Thread nt = thread.getNativeThread();
+        if (nt == null) {
+            return;
+        }
+        StackTraceElement[] stackTrace = nt.getStackTrace();
+        if (stackTrace.length == 0) {
+            return;
+        }
         BacktraceData data = TraceType.Gather.CALLER.getBacktraceData(context, stackTrace, false);
         RubyStackTraceElement[] backtrace = data.getBacktrace(ruby);
 
