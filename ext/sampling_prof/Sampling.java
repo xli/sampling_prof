@@ -78,43 +78,24 @@ public class Sampling {
         return this.context;
     }
 
-    public IRubyObject result() {
-        StringBuilder buffer = new StringBuilder();
-        buffer.append(endAt.get() - startAt).append("\n");
-        buffer.append("\n");
-        for (Map.Entry<String, Integer> entry1 : nodes.entrySet()) {
-            buffer.append(entry1.getKey()).append(",").append(entry1.getValue());
-            buffer.append("\n");
-        }
-        buffer.append("\n");
-        for (Map.Entry<Integer, Count> entry1 : counts.entrySet()) {
-            Count count = entry1.getValue();
-            buffer.append(entry1.getKey()).append(",").append(count.self).append(",").append(count.total);
-            buffer.append("\n");
-        }
-        buffer.append("\n");
-        for (Map.Entry<Path, Integer> entry : callGraph.entrySet()) {
-            Path key = entry.getKey();
-            buffer.append(key.fromId).append(",").append(key.toId).append(",").append(entry.getValue());
-            buffer.append("\n");
-        }
-
-        return JavaUtil.convertJavaToRuby(ruby, buffer.toString());
+    // the following methods called by multiple threads
+    public boolean isStop() {
+        return this.endAt.get() > 0;
     }
 
+    // the following methods called by thread of starting&stopping profiling
+    public void stop() {
+        this.endAt.set(System.currentTimeMillis());
+    }
+
+    // the following methods called by sampling thread.
+    // these methods should be called in single thread, so that we don't need to
+    // sync hash maps we used to store data.
     public void output() {
         if (nodes.isEmpty() || ruby.getCurrentContext().getThread() == null) {
             return;
         }
         outputHandler.call(ruby.getCurrentContext(), result());
-    }
-
-    public void stop() {
-        this.endAt.set(System.currentTimeMillis());
-    }
-
-    public boolean isStop() {
-        return this.endAt.get() > 0;
     }
 
     public void process() {
@@ -162,6 +143,30 @@ public class Sampling {
             }
             parentId = nodeId;
         }
+    }
+
+    private IRubyObject result() {
+        StringBuilder buffer = new StringBuilder();
+        buffer.append(endAt.get() - startAt).append("\n");
+        buffer.append("\n");
+        for (Map.Entry<String, Integer> entry1 : nodes.entrySet()) {
+            buffer.append(entry1.getKey()).append(",").append(entry1.getValue());
+            buffer.append("\n");
+        }
+        buffer.append("\n");
+        for (Map.Entry<Integer, Count> entry1 : counts.entrySet()) {
+            Count count = entry1.getValue();
+            buffer.append(entry1.getKey()).append(",").append(count.self).append(",").append(count.total);
+            buffer.append("\n");
+        }
+        buffer.append("\n");
+        for (Map.Entry<Path, Integer> entry : callGraph.entrySet()) {
+            Path key = entry.getKey();
+            buffer.append(key.fromId).append(",").append(key.toId).append(",").append(entry.getValue());
+            buffer.append("\n");
+        }
+
+        return JavaUtil.convertJavaToRuby(ruby, buffer.toString());
     }
 
     private int nodeId(String node) {
