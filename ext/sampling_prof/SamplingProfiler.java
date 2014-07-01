@@ -89,11 +89,10 @@ public class SamplingProfiler extends RubyObject {
             public void run() {
                 while (true){
                     for(Sampling sampling : samplings.values()) {
-                        if (sampling.isStop()) {
+                        boolean success = sampling.process();
+                        if (!success) {
                             samplings.remove(sampling.getContext());
                             sampling.output();
-                        } else {
-                            sampling.process();
                         }
                     }
                     try {

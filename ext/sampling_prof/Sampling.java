@@ -60,6 +60,7 @@ public class Sampling {
 
     private final Ruby ruby;
     private final ThreadContext context;
+    private final RubyThread thread;
     private final Block outputHandler;
     private final Map<String, Integer> nodes = new HashMap<String, Integer>();
     private final Map<Path, Integer> callGraph = new HashMap<Path, Integer>();
@@ -67,12 +68,12 @@ public class Sampling {
     private final long startAt;
     private final AtomicLong endAt = new AtomicLong(-1);
 
-
     public Sampling(Ruby ruby, ThreadContext context, Block outputHandler) {
         this.ruby = ruby;
         this.context = context;
         this.outputHandler = outputHandler;
         this.startAt = System.currentTimeMillis();
+        this.thread = context.getThread();
     }
 
     public ThreadContext getContext() {
@@ -99,20 +100,22 @@ public class Sampling {
         outputHandler.call(ruby.getCurrentContext(), result());
     }
 
-    public void process() {
-        RubyThread thread = context.getThread();
-        if (thread == null || !thread.isAlive()) {
-            return;
+    public boolean process() {
+        if (!thread.isAlive()) {
+            return false;
         }
         Thread nt = thread.getNativeThread();
         if (nt == null) {
-            return;
+            return false;
         }
         StackTraceElement[] stackTrace = nt.getStackTrace();
         if (stackTrace.length == 0) {
-            return;
+            return false;
         }
         BacktraceData data = TraceType.Gather.CALLER.getBacktraceData(context, stackTrace, false);
+        if(isStop()) {
+            return false;
+        }
         RubyStackTraceElement[] backtrace = data.getBacktrace(ruby);
 
         int parentId = -1;
@@ -152,6 +155,7 @@ public class Sampling {
             }
             parentId = nodeId;
         }
+        return true;
     }
 
     private IRubyObject result() {
