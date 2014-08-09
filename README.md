@@ -2,6 +2,9 @@ SamplingProf
 ===============
 
 SamplingProf is a statistical profiler or sampling profiler that operates by sampling your running thread stacktrace. The result is statistical approximation, but it allows your code to run near full speed.
+It is optimized for JRuby.
+
+Supports JRuby both 1.8 and 1.9 mode, and CRuby 1.9+.
 
 Quick start
 ---------------
@@ -23,7 +26,7 @@ SamplingProf class initializer takes 1 argument:
 
 1. sampling interval: seconds
 
-SamplingProf class also takes block as another option to overwite default output handler, the default output handler will write output data to a local file defined by output_file attribute, which is default to SamplingProf::DEFAULT_OUTPUT_FILE
+SamplingProf class also takes block as another option to overwrite default output handler, the default output handler will write output data to a local file defined by output_file attribute, which is default to SamplingProf::DEFAULT_OUTPUT_FILE
 
 Notice, for the performance and thread-safe concerns, the output handler will not be called in the context of the thread start profiling.
 
@@ -33,10 +36,14 @@ You need call SamplingProf#terminate to shutdown the sampling thread after every
 ### Sampling interval
 
 This is an interval to control how frequent SamplingProf should take sample of target thread stacktrace.
-The default value is 0.1 seconds.
+The default value is 0.1 seconds, and is designed for general Rails web request profiling.
+Adjust this parameter for your case, so that sampling process does lowest overhead for your program.
 
 Output data format
 ---------------
+
+Output data is plain text, so that you can see the result and do analysis by yourself.
+Checkout sampling_prof.rb report method for how to generate report from output data file.
 
 Output data is divided into a number of chunks. Chunks are separated by 2 "\n" chars.
 

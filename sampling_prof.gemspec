@@ -1,9 +1,11 @@
 Gem::Specification.new do |s|
   s.name = 'sampling_prof'
   s.version = '0.4.8'
-  s.summary = 'Simple sampling profiler for ruby'
+  s.summary = 'Simple sampling profiler for ruby, optimized for JRuby'
   s.description = <<-EOF
-SamplingProf is a profiling tool that operates by sampling your running thread stacktrace. The result is statistical approximation, but it allows your code to run near full speed
+SamplingProf is a profiling tool that operates by sampling your running thread stacktrace.
+The result is statistical approximation, but it allows your code to run near full speed.
+Supports JRuby both 1.8 and 1.9 mode, and CRuby 1.9+.
 EOF
   s.license = 'MIT'
   s.authors = ["Xiao Li"]
